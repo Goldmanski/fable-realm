@@ -1,0 +1,13 @@
+# Python 3.11.9
+
+# Application
+streamlit==1.43.2
+pandas==1.5.3
+openai==1.107.1
+st-paywall==0.1.8
+
+# Database
+psycopg2-binary==2.9.12
+
+# Numerical dependencies
+numpy==1.26.4
