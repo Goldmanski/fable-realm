@@ -1,8 +1,10 @@
+
 # ============================================================
 # IMPORTS
 # ============================================================
 
 from ..domain.story import Story
+from ..domain.story_project import StoryProject
 from ..domain.story_settings import StorySettings
 from ..domain.world import World
 
@@ -16,6 +18,15 @@ class StoryService:
     # --------------------------------------------------------
     # PUBLIC METHODS
     # --------------------------------------------------------
+
+    def create_project(self, id, title):
+
+        project = StoryProject(
+            id=id,
+            title=title,
+        )
+
+        return project
 
     def create_story(
         self,
@@ -50,14 +61,34 @@ class StoryService:
 
         return story
 
+
 # ============================================================
 # MANUAL TEST
 # ============================================================
 
 service = StoryService()
 
-story = service.create_story(
+# ------------------------------------------------------------
+# CREATE PROJECT
+# ------------------------------------------------------------
+
+project = service.create_project(
     id=1,
+    title="The Last Signal",
+)
+
+print(project.id)
+print(project.title)
+print(project.status)
+print(project.story_id)
+
+
+# ------------------------------------------------------------
+# CREATE STORY
+# ------------------------------------------------------------
+
+story = service.create_story(
+    id=10,
     title="The Last Signal",
     genre="Sci-Fi",
     tone="Dark",
@@ -67,10 +98,11 @@ story = service.create_story(
     world_description="A remote human colony on Mars.",
 )
 
+# ------------------------------------------------------------
+# CONNECT PROJECT WITH STORY
+# ------------------------------------------------------------
+
+project.attach_story(story.id)
+
+print(project.story_id)
 print(story.title)
-print(story.settings.genre)
-print(story.settings.tone)
-print(story.settings.length)
-print(story.settings.creativity)
-print(story.world.name)
-print(story.world.description)
