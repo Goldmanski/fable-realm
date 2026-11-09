@@ -84,7 +84,8 @@ class StoryService:
 
         project_character = character.copy_for_project(new_id)
 
-        story.add_character(project_character)
+        if not story.add_character(project_character):
+            return None
 
         return project_character
 
@@ -130,7 +131,8 @@ class StoryService:
 
         project_location = location.copy_for_project(new_id)
 
-        story.add_location(project_location)
+        if not story.add_location(project_location):
+            return None
 
         return project_location
 
@@ -153,7 +155,8 @@ class StoryService:
 
         project_artifact = artifact.copy_for_project(new_id)
 
-        story.add_artifact(project_artifact)
+        if not story.add_artifact(project_artifact):
+            return None
 
         return project_artifact
     
@@ -179,7 +182,9 @@ class StoryService:
             return None
 
         library_character = character.copy_for_library(new_id)
-        library.add_character(library_character)
+
+        if not library.add_character(library_character):
+            return None
 
         return library_character
 
@@ -197,7 +202,9 @@ class StoryService:
             return None
 
         library_world = story.world.copy_for_library(new_id)
-        library.add_world(library_world)
+
+        if not library.add_world(library_world):
+            return None
 
         return library_world
 
@@ -223,7 +230,9 @@ class StoryService:
             return None
 
         library_location = location.copy_for_library(new_id)
-        library.add_location(library_location)
+
+        if not library.add_location(library_location):
+            return None
 
         return library_location
 
@@ -249,7 +258,9 @@ class StoryService:
             return None
 
         library_artifact = artifact.copy_for_library(new_id)
-        library.add_artifact(library_artifact)
+
+        if not library.add_artifact(library_artifact):
+            return None
 
         return library_artifact
 
@@ -366,6 +377,54 @@ if __name__ == "__main__":
         story=story,
         artifact_id=4,
         new_id=104,
+    )
+
+    # --------------------------------------------------------
+    # TEST DUPLICATE ELEMENTS
+    # --------------------------------------------------------
+
+    print("\n--- DUPLICATE ELEMENTS ---")
+
+    print(
+        service.add_library_character_to_story(
+            library, story, 1, 101
+        )
+    )
+
+    print(
+        service.add_library_location_to_story(
+            library, story, 3, 103
+        )
+    )
+
+    print(
+        service.add_library_artifact_to_story(
+            library, story, 4, 104
+        )
+    )
+
+    print(
+        service.save_story_character_to_library(
+            library, story, 101, 1
+        )
+    )
+
+    print(
+        service.save_story_world_to_library(
+            library, story, 2
+        )
+    )
+
+    print(
+        service.save_story_location_to_library(
+            library, story, 103, 3
+        )
+    )
+
+    print(
+        service.save_story_artifact_to_library(
+            library, story, 104, 4
+        )
     )
 
     # --------------------------------------------------------

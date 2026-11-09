@@ -56,15 +56,36 @@ class Story:
         return True
 
     def add_character(self, character):
+
+        if self.get_character(character.id) is not None:
+            return False
+
         self.characters.append(character)
+        return True
+
 
     def add_location(self, location):
+
+        if self.get_location(location.id) is not None:
+            return False
+
         self.locations.append(location)
+        return True
+
 
     def add_artifact(self, artifact):
+
+        if self.get_artifact(artifact.id) is not None:
+            return False
+
         self.artifacts.append(artifact)
+        return True
+
 
     def add_relationship(self, relationship):
+
+        if self.get_relationship(relationship.id) is not None:
+            return False
 
         if relationship.character_id == relationship.related_character_id:
             return False
@@ -425,6 +446,49 @@ if __name__ == "__main__":
     story.add_relationship(relationship)
 
     # --------------------------------------------------------
+    # TEST DUPLICATE ELEMENTS
+    # --------------------------------------------------------
+
+    print("\n--- DUPLICATE ELEMENTS ---")
+
+    duplicate_character = Character(
+        id=1,
+        name="Duplicate Character",
+        description="Should not be added.",
+        role="unknown",
+    )
+
+    duplicate_location = Location(
+        id=1,
+        name="Duplicate Location",
+        description="Should not be added.",
+    )
+
+    duplicate_artifact = Artifact(
+        id=1,
+        name="Duplicate Artifact",
+        description="Should not be added.",
+    )
+
+    duplicate_relationship = Relationship(
+        id=1,
+        character_id=1,
+        related_character_id=2,
+        relationship_type="Friendship",
+        description="Duplicate relationship.",
+    )
+
+    print(story.add_character(duplicate_character))
+    print(story.add_location(duplicate_location))
+    print(story.add_artifact(duplicate_artifact))
+    print(story.add_relationship(duplicate_relationship))
+
+    print(len(story.characters))
+    print(len(story.locations))
+    print(len(story.artifacts))
+    print(len(story.relationships))
+
+    # --------------------------------------------------------
     # TEST CHAPTER MANAGEMENT
     # --------------------------------------------------------
 
@@ -624,6 +688,32 @@ if __name__ == "__main__":
     print(story.remove_relationship(1))
     print(story.get_relationship(1))
     print(story.remove_relationship(999))
+
+    # --------------------------------------------------------
+    # TEST INVALID RELATIONSHIPS
+    # --------------------------------------------------------
+
+    print("\n--- INVALID RELATIONSHIPS ---")
+
+    invalid_relationship = Relationship(
+        id=2,
+        character_id=1,
+        related_character_id=999,
+        relationship_type="Friendship",
+        description="Nonexistent character.",
+    )
+
+    self_relationship = Relationship(
+        id=3,
+        character_id=1,
+        related_character_id=1,
+        relationship_type="Friendship",
+        description="Self relationship.",
+    )
+
+    print(story.add_relationship(invalid_relationship))
+    print(story.add_relationship(self_relationship))
+    print(len(story.relationships))
 
     # --------------------------------------------------------
     # REMOVE ELEMENTS
