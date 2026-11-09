@@ -74,6 +74,83 @@ class CreativeLibrary:
 
         return None
 
+    # --------------------------------------------------------
+    # REMOVE ELEMENTS
+    # --------------------------------------------------------
+
+    def remove_character(self, character_id):
+
+        for character in self.characters:
+            if character.id == character_id:
+                self.characters.remove(character)
+                return True
+
+        return False
+
+    def remove_world(self, world_id):
+
+        for world in self.worlds:
+            if world.id == world_id:
+                self.worlds.remove(world)
+                return True
+
+        return False
+
+    def remove_location(self, location_id):
+
+        for location in self.locations:
+            if location.id == location_id:
+                self.locations.remove(location)
+                return True
+
+        return False
+
+    def remove_artifact(self, artifact_id):
+
+        for artifact in self.artifacts:
+            if artifact.id == artifact_id:
+                self.artifacts.remove(artifact)
+                return True
+
+        return False
+
+    # --------------------------------------------------------
+    # UPDATE ELEMENTS
+    # --------------------------------------------------------
+
+    def update_character(self, character_id, name, description, role):
+        for character in self.characters:
+            if character.id == character_id:
+                character.name = name
+                character.description = description
+                character.role = role
+                return True
+        return False
+
+    def update_world(self, world_id, name, description):
+        for world in self.worlds:
+            if world.id == world_id:
+                world.name = name
+                world.description = description
+                return True
+        return False
+
+    def update_location(self, location_id, name, description):
+        for location in self.locations:
+            if location.id == location_id:
+                location.name = name
+                location.description = description
+                return True
+        return False
+
+    def update_artifact(self, artifact_id, name, description):
+        for artifact in self.artifacts:
+            if artifact.id == artifact_id:
+                artifact.name = name
+                artifact.description = description
+                return True
+        return False
+
 # ============================================================
 # MANUAL TEST
 # ============================================================
@@ -144,3 +221,110 @@ if __name__ == "__main__":
     print(found_artifact.name)
 
     print(library.get_character(character_id=999))
+
+    # --------------------------------------------------------
+    # UPDATE ELEMENTS
+    # --------------------------------------------------------
+
+    print("\nUPDATE ELEMENTS:")
+
+    print(library.update_character(
+        character_id=1,
+        name="Elias Updated",
+        description="An experienced engineer.",
+        role="mentor",
+    ))
+
+    print(library.update_world(
+        world_id=1,
+        name="Mars Colony Updated",
+        description="A thriving human settlement on Mars.",
+    ))
+
+    print(library.update_location(
+        location_id=1,
+        name="Research Station Updated",
+        description="An advanced research facility on Mars.",
+    ))
+
+    print(library.update_artifact(
+        artifact_id=1,
+        name="Ancient Device Updated",
+        description="An ancient technological artifact.",
+    ))
+
+    # --------------------------------------------------------
+    # VERIFY UPDATED ELEMENTS
+    # --------------------------------------------------------
+
+    print("\nUPDATED ELEMENTS:")
+
+    print(library.get_character(1).name)
+    print(library.get_character(1).description)
+    print(library.get_character(1).role)
+
+    print(library.get_world(1).name)
+    print(library.get_world(1).description)
+
+    print(library.get_location(1).name)
+    print(library.get_location(1).description)
+
+    print(library.get_artifact(1).name)
+    print(library.get_artifact(1).description)
+
+    # --------------------------------------------------------
+    # UPDATE NONEXISTENT ELEMENT
+    # --------------------------------------------------------
+
+    print("\nUPDATE NONEXISTENT ELEMENT:")
+
+    print(library.update_character(
+        character_id=999,
+        name="Unknown",
+        description="Unknown",
+        role="Unknown",
+    ))
+
+    # --------------------------------------------------------
+    # REMOVE ELEMENTS
+    # --------------------------------------------------------
+
+    removed_character = library.remove_character(character_id=1)
+    removed_world = library.remove_world(world_id=1)
+    removed_location = library.remove_location(location_id=1)
+    removed_artifact = library.remove_artifact(artifact_id=1)
+
+    # --------------------------------------------------------
+    # DISPLAY REMOVAL RESULTS
+    # --------------------------------------------------------
+
+    print("\n--- REMOVAL RESULTS ---")
+
+    print("Character removed:", removed_character)
+    print("World removed:", removed_world)
+    print("Location removed:", removed_location)
+    print("Artifact removed:", removed_artifact)
+
+    # --------------------------------------------------------
+    # CHECK LIBRARY CONTENT
+    # --------------------------------------------------------
+
+    print("\n--- LIBRARY CONTENT AFTER REMOVAL ---")
+
+    print("Characters:", len(library.characters))
+    print("Worlds:", len(library.worlds))
+    print("Locations:", len(library.locations))
+    print("Artifacts:", len(library.artifacts))
+
+    # --------------------------------------------------------
+    # TEST REMOVAL OF NON-EXISTING ELEMENTS
+    # --------------------------------------------------------
+
+    print("\n--- NON-EXISTING ELEMENTS ---")
+
+    print(library.remove_character(character_id=999))
+    print(library.remove_world(world_id=999))
+    print(library.remove_location(location_id=999))
+    print(library.remove_artifact(artifact_id=999))
+
+    

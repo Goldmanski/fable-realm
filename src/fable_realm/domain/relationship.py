@@ -28,7 +28,6 @@ class Relationship:
         self.relationship_type = relationship_type
         self.description = description
 
-
 # ============================================================
 # MANUAL TEST
 # ============================================================

@@ -6,7 +6,6 @@
 from ..domain.story import Story
 from ..domain.story_project import StoryProject
 from ..domain.story_settings import StorySettings
-from ..domain.world import World
 from ..domain.creative_library import CreativeLibrary
 from ..domain.character import Character
 from ..domain.world import World
@@ -35,6 +34,7 @@ class StoryService:
     def create_story(
         self,
         id,
+        world_id,
         title,
         genre,
         tone,
@@ -51,7 +51,7 @@ class StoryService:
         )
 
         world = World(
-            id=id,
+            id=world_id,
             name=world_name,
             description=world_description,
         )
@@ -281,6 +281,7 @@ if __name__ == "__main__":
 
     story = service.create_story(
         id=10,
+        world_id=11,
         title="The Last Signal",
         genre="Sci-Fi",
         tone="Dark",
@@ -521,4 +522,52 @@ if __name__ == "__main__":
 
     print("Story Artifact:", story.artifacts[0].name)
     print("Library Artifact:", library_artifact.name)
+
+    # --------------------------------------------------------
+    # TEST NONEXISTENT ELEMENTS
+    # --------------------------------------------------------
+
+    print("\n--- NONEXISTENT ELEMENTS ---")
+
+    print(
+        service.add_library_character_to_story(
+            library, story, 999, 301
+        )
+    )
+
+    print(
+        service.add_library_world_to_story(
+            library, story, 999, 302
+        )
+    )
+
+    print(
+        service.add_library_location_to_story(
+            library, story, 999, 303
+        )
+    )
+
+    print(
+        service.add_library_artifact_to_story(
+            library, story, 999, 304
+        )
+    )
+
+    print(
+        service.save_story_character_to_library(
+            library, story, 999, 401
+        )
+    )
+
+    print(
+        service.save_story_location_to_library(
+            library, story, 999, 403
+        )
+    )
+
+    print(
+        service.save_story_artifact_to_library(
+            library, story, 999, 404
+        )
+    )
 
