@@ -48,7 +48,12 @@ class Story:
         self.title = title
 
     def add_chapter(self, chapter):
+
+        if self.get_chapter(chapter.id) is not None:
+            return False
+
         self.chapters.append(chapter)
+        return True
 
     def add_character(self, character):
         self.characters.append(character)
@@ -60,12 +65,31 @@ class Story:
         self.artifacts.append(artifact)
 
     def add_relationship(self, relationship):
+
+        if relationship.character_id == relationship.related_character_id:
+            return False
+
+        if self.get_character(relationship.character_id) is None:
+            return False
+
+        if self.get_character(relationship.related_character_id) is None:
+            return False
+
         self.relationships.append(relationship)
+        return True
 
     # --------------------------------------------------------
     # GET ELEMENTS
     # --------------------------------------------------------
 
+    def get_chapter(self, chapter_id):
+
+        for chapter in self.chapters:
+            if chapter.id == chapter_id:
+                return chapter
+
+        return None
+    
     def get_character(self, character_id):
 
         for character in self.characters:
@@ -109,6 +133,16 @@ class Story:
     # UPDATE ELEMENTS
     # --------------------------------------------------------
 
+    def update_chapter(self, chapter_id, number, title):
+
+        for chapter in self.chapters:
+            if chapter.id == chapter_id:
+                chapter.number = number
+                chapter.title = title
+                return True
+
+        return False
+    
     def update_character(self, character_id, name, description, role):
 
         for character in self.characters:
@@ -158,6 +192,15 @@ class Story:
         description,
     ):
 
+        if character_id == related_character_id:
+            return False
+
+        if self.get_character(character_id) is None:
+            return False
+
+        if self.get_character(related_character_id) is None:
+            return False
+
         for relationship in self.relationships:
             if relationship.id == relationship_id:
                 relationship.character_id = character_id
@@ -172,11 +215,33 @@ class Story:
     # REMOVE ELEMENTS
     # --------------------------------------------------------
 
+    def remove_chapter(self, chapter_id):
+
+        for chapter in self.chapters:
+            if chapter.id == chapter_id:
+                self.chapters.remove(chapter)
+                return True
+
+        return False
+    
     def remove_character(self, character_id):
 
         for character in self.characters:
             if character.id == character_id:
+
                 self.characters.remove(character)
+
+                new_relationships = []
+
+                for relationship in self.relationships:
+                    if (
+                        relationship.character_id != character_id
+                        and relationship.related_character_id != character_id
+                    ):
+                        new_relationships.append(relationship)
+
+                self.relationships = new_relationships
+
                 return True
 
         return False
@@ -216,6 +281,32 @@ class Story:
 
         return False
 
+    # --------------------------------------------------------
+    # REORDER CHAPTERS
+    # --------------------------------------------------------
+
+    def reorder_chapters(self, chapter_ids):
+
+        # Check for duplicate IDs
+        if len(chapter_ids) != len(set(chapter_ids)):
+            return False
+
+        reordered_chapters = []
+
+        for chapter_id in chapter_ids:
+            chapter = self.get_chapter(chapter_id)
+
+            if chapter is None:
+                return False
+
+            reordered_chapters.append(chapter)
+
+        # Check if all chapters are included
+        if len(reordered_chapters) != len(self.chapters):
+            return False
+
+        self.chapters = reordered_chapters
+        return True
 
 # ============================================================
 # MANUAL TEST
@@ -334,6 +425,85 @@ if __name__ == "__main__":
     story.add_relationship(relationship)
 
     # --------------------------------------------------------
+    # TEST CHAPTER MANAGEMENT
+    # --------------------------------------------------------
+
+    print("\n--- CHAPTER MANAGEMENT ---")
+
+    chapter_2 = Chapter(
+        id=2,
+        number=2,
+        title="The Discovery",
+    )
+
+    chapter_3 = Chapter(
+        id=3,
+        number=3,
+        title="The Revelation",
+    )
+
+    # ADD CHAPTERS
+
+    print(story.add_chapter(chapter_2))
+    print(story.add_chapter(chapter_3))
+
+    # TEST DUPLICATE CHAPTER
+
+    duplicate_chapter = Chapter(
+        id=1,
+        number=99,
+        title="Duplicate Chapter",
+    )
+
+    print(story.add_chapter(duplicate_chapter))
+    print(len(story.chapters))
+
+    # GET CHAPTER
+
+    print(story.get_chapter(1).title)
+    print(story.get_chapter(999))
+
+    # UPDATE CHAPTER
+
+    print(story.update_chapter(
+        chapter_id=2,
+        number=2,
+        title="The Discovery Updated",
+    ))
+
+    print(story.get_chapter(2).title)
+
+    # TEST NONEXISTENT CHAPTER
+
+    print(story.update_chapter(
+        chapter_id=999,
+        number=99,
+        title="Unknown",
+    ))
+
+    # REORDER CHAPTERS
+
+    print(story.reorder_chapters([3, 1, 2]))
+
+    for chapter in story.chapters:
+        print(chapter.id, chapter.number, chapter.title)
+
+    # TEST INVALID REORDERING
+
+    print(story.reorder_chapters([1, 1, 2]))
+    print(story.reorder_chapters([1, 2, 999]))
+    print(story.reorder_chapters([1, 2]))
+
+    # REMOVE CHAPTER
+
+    print(story.remove_chapter(3))
+    print(story.get_chapter(3))
+
+    # TEST NONEXISTENT CHAPTER REMOVAL
+
+    print(story.remove_chapter(999))
+
+    # --------------------------------------------------------
     # DISPLAY STORY
     # --------------------------------------------------------
 
@@ -412,28 +582,6 @@ if __name__ == "__main__":
     print(story.update_artifact(999, "Unknown", "Unknown"))
 
     # --------------------------------------------------------
-    # REMOVE ELEMENTS
-    # --------------------------------------------------------
-
-    print("\n--- REMOVE ELEMENTS ---")
-
-    print(story.remove_character(1))
-    print(story.remove_world(1))
-    print(story.remove_location(1))
-    print(story.remove_artifact(1))
-
-    # --------------------------------------------------------
-    # VERIFY REMOVAL
-    # --------------------------------------------------------
-
-    print("\n--- VERIFY REMOVAL ---")
-
-    print(story.get_character(1))
-    print(story.get_world(1))
-    print(story.get_location(1))
-    print(story.get_artifact(1))
-
-    # --------------------------------------------------------
     # GET RELATIONSHIP
     # --------------------------------------------------------
 
@@ -476,3 +624,25 @@ if __name__ == "__main__":
     print(story.remove_relationship(1))
     print(story.get_relationship(1))
     print(story.remove_relationship(999))
+
+    # --------------------------------------------------------
+    # REMOVE ELEMENTS
+    # --------------------------------------------------------
+
+    print("\n--- REMOVE ELEMENTS ---")
+
+    print(story.remove_character(1))
+    print(story.remove_world(1))
+    print(story.remove_location(1))
+    print(story.remove_artifact(1))
+
+    # --------------------------------------------------------
+    # VERIFY REMOVAL
+    # --------------------------------------------------------
+
+    print("\n--- VERIFY REMOVAL ---")
+
+    print(story.get_character(1))
+    print(story.get_world(1))
+    print(story.get_location(1))
+    print(story.get_artifact(1))

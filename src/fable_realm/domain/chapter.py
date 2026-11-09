@@ -35,8 +35,13 @@ class Chapter:
         self.title = title
 
     def add_scene(self, scene):
-        self.scenes.append(scene)
 
+        if self.get_scene(scene.id) is not None:
+            return False
+
+        self.scenes.append(scene)
+        return True
+    
     # --------------------------------------------------------
     # GET SCENE
     # --------------------------------------------------------
@@ -130,6 +135,22 @@ if __name__ == "__main__":
 
     chapter.add_scene(scene_1)
     chapter.add_scene(scene_2)
+
+    # --------------------------------------------------------
+    # TEST DUPLICATE SCENE
+    # --------------------------------------------------------
+
+    print("\n--- DUPLICATE SCENE ---")
+
+    duplicate_scene = Scene(
+        id=1,
+        title="Duplicate Scene",
+        content="This scene should not be added.",
+    )
+
+    print(chapter.add_scene(duplicate_scene))
+    print(len(chapter.scenes))
+    print(chapter.get_scene(1).title)
 
     print(chapter.id)
     print(chapter.number)

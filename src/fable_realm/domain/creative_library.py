@@ -31,16 +31,39 @@ class CreativeLibrary:
     # --------------------------------------------------------
 
     def add_character(self, character):
+
+        if self.get_character(character.id) is not None:
+            return False
+
         self.characters.append(character)
+        return True
+
 
     def add_world(self, world):
+
+        if self.get_world(world.id) is not None:
+            return False
+
         self.worlds.append(world)
+        return True
+
 
     def add_location(self, location):
+
+        if self.get_location(location.id) is not None:
+            return False
+
         self.locations.append(location)
+        return True
+
 
     def add_artifact(self, artifact):
+
+        if self.get_artifact(artifact.id) is not None:
+            return False
+
         self.artifacts.append(artifact)
+        return True
 
     def get_character(self, character_id):
 
@@ -196,6 +219,47 @@ if __name__ == "__main__":
     library.add_world(world)
     library.add_location(location)
     library.add_artifact(artifact)
+
+    # --------------------------------------------------------
+    # TEST DUPLICATE ELEMENTS
+    # --------------------------------------------------------
+
+    print("\n--- DUPLICATE ELEMENTS ---")
+
+    duplicate_character = Character(
+        id=1,
+        name="Duplicate Character",
+        description="Should not be added.",
+        role="unknown",
+    )
+
+    duplicate_world = World(
+        id=1,
+        name="Duplicate World",
+        description="Should not be added.",
+    )
+
+    duplicate_location = Location(
+        id=1,
+        name="Duplicate Location",
+        description="Should not be added.",
+    )
+
+    duplicate_artifact = Artifact(
+        id=1,
+        name="Duplicate Artifact",
+        description="Should not be added.",
+    )
+
+    print(library.add_character(duplicate_character))
+    print(library.add_world(duplicate_world))
+    print(library.add_location(duplicate_location))
+    print(library.add_artifact(duplicate_artifact))
+
+    print(len(library.characters))
+    print(len(library.worlds))
+    print(len(library.locations))
+    print(len(library.artifacts))
 
     # --------------------------------------------------------
     # DISPLAY LIBRARY CONTENT
