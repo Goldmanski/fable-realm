@@ -12,7 +12,6 @@ from .location import Location
 from .artifact import Artifact
 from .relationship import Relationship
 
-
 # ============================================================
 # STORY
 # ============================================================
@@ -735,7 +734,6 @@ if __name__ == "__main__":
     print(story.remove_character(1))
     print(story.get_relationship(2))
 
-    print(story.remove_character(1))
     print(story.remove_world(1))
     print(story.remove_location(1))
     print(story.remove_artifact(1))
