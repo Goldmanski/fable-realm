@@ -721,6 +721,20 @@ if __name__ == "__main__":
 
     print("\n--- REMOVE ELEMENTS ---")
 
+    # TEST CASCADE RELATIONSHIP REMOVAL
+
+    cascade_relationship = Relationship(
+        id=2,
+        character_id=1,
+        related_character_id=2,
+        relationship_type="Friendship",
+        description="Relationship to be removed with character.",
+    )
+
+    print(story.add_relationship(cascade_relationship))
+    print(story.remove_character(1))
+    print(story.get_relationship(2))
+
     print(story.remove_character(1))
     print(story.remove_world(1))
     print(story.remove_location(1))

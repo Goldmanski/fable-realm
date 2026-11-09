@@ -34,7 +34,6 @@ class StoryProject:
     def attach_story(self, story_id):
         self.story_id = story_id
 
-
 # ============================================================
 # MANUAL TEST
 # ============================================================
