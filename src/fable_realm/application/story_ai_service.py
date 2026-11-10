@@ -29,6 +29,22 @@ class StoryAIService:
         temperature=1.0,
         max_tokens=None,
     ):
+
+        if not user_message or not user_message.strip():
+            raise ValueError("User message cannot be empty.")
+
+        if not model or not model.strip():
+            raise ValueError("Model cannot be empty.")
+
+        if system_message is not None and not system_message.strip():
+            raise ValueError("System message cannot be empty.")
+
+        if temperature < 0 or temperature > 2:
+            raise ValueError("Temperature must be between 0 and 2.")
+
+        if max_tokens is not None and max_tokens <= 0:
+            raise ValueError("Max tokens must be greater than zero.")
+        
         messages = []
 
         if system_message is not None:
@@ -148,6 +164,53 @@ if __name__ == "__main__":
 
     if response.usage is not None:
         print(response.usage.total_tokens)
+
+    # --------------------------------------------------------
+    # TEST GENERATE TEXT VALIDATION
+    # --------------------------------------------------------
+
+    try:
+        service.generate_text(
+            user_message="   ",
+            model="gpt-4o",
+        )
+    except ValueError as error:
+        print("Empty user message:", error)
+
+    try:
+        service.generate_text(
+            user_message="Test message",
+            model="",
+        )
+    except ValueError as error:
+        print("Empty model:", error)
+
+    try:
+        service.generate_text(
+            user_message="Test message",
+            model="gpt-4o",
+            system_message="   ",
+        )
+    except ValueError as error:
+        print("Empty system message:", error)
+
+    try:
+        service.generate_text(
+            user_message="Test message",
+            model="gpt-4o",
+            temperature=2.5,
+        )
+    except ValueError as error:
+        print("Invalid temperature:", error)
+
+    try:
+        service.generate_text(
+            user_message="Test message",
+            model="gpt-4o",
+            max_tokens=0,
+        )
+    except ValueError as error:
+        print("Invalid max tokens:", error)
 
 
     # --------------------------------------------------------
