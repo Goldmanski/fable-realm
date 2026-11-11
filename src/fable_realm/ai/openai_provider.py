@@ -2,6 +2,7 @@
 # IMPORTS
 # ============================================================
 
+import instructor
 from openai import OpenAI, OpenAIError
 
 from .provider import (
@@ -21,6 +22,10 @@ class OpenAIProvider(AIProvider):
     def __init__(self, api_key):
         self.client = OpenAI(api_key=api_key)
 
+        self.instructor_client = instructor.from_openai(
+            self.client
+        )
+
     # --------------------------------------------------------
     # GENERATE
     # --------------------------------------------------------
@@ -28,6 +33,18 @@ class OpenAIProvider(AIProvider):
     def generate(self, request):
 
         try:
+
+            if request.response_model is not None:
+                response = self.instructor_client.chat.completions.create(
+                    model=request.model,
+                    messages=request.messages,
+                    temperature=request.temperature,
+                    max_tokens=request.max_tokens,
+                    response_model=request.response_model,
+                )
+
+                return response
+
             response = self.client.chat.completions.create(
                 model=request.model,
                 messages=request.messages,
@@ -121,4 +138,32 @@ if __name__ == "__main__":
     except AIProviderError as error:
         print("\n--- AI PROVIDER ERROR ---")
         print(error)
+
+    # --------------------------------------------------------
+    # TEST STRUCTURED RESPONSE
+    # --------------------------------------------------------
+
+    from .story_blueprint_schema import StoryBlueprintSchema
+
+    structured_request = AIRequest(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": "Create a fantasy story blueprint about an exiled prince.",
+            }
+        ],
+        temperature=0.8,
+        max_tokens=1000,
+        response_model=StoryBlueprintSchema,
+    )
+
+    structured_response = provider.generate(structured_request)
+
+    print("\n--- STRUCTURED RESPONSE ---")
+    print(type(structured_response))
+    print(structured_response.title)
+    print(structured_response.synopsis)
+    print(structured_response.genre)
+    print(structured_response.main_characters)
 

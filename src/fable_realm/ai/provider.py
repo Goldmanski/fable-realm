@@ -10,11 +10,13 @@ class AIRequest:
         messages,
         temperature=1.0,
         max_tokens=None,
+        response_model=None,
     ):
         self.model = model
         self.messages = messages
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.response_model = response_model
 
 # ============================================================
 # AI USAGE
@@ -160,3 +162,23 @@ if __name__ == "__main__":
     except AIProviderError as error:
         print("\n--- AI PROVIDER ERROR ---")
         print(error)
+
+    # --------------------------------------------------------
+    # TEST AI REQUEST WITH RESPONSE MODEL
+    # --------------------------------------------------------
+
+    from .story_blueprint_schema import StoryBlueprintSchema
+
+    structured_request = AIRequest(
+        model="gpt-4o",
+        messages=[
+            {"role": "user", "content": "Create a story blueprint."}
+        ],
+        temperature=0.8,
+        max_tokens=1000,
+        response_model=StoryBlueprintSchema,
+    )
+
+    print("\n--- AI REQUEST WITH RESPONSE MODEL ---")
+    print(structured_request.model)
+    print(structured_request.response_model)

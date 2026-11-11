@@ -1,4 +1,7 @@
 
+from ..ai.story_blueprint_schema import StoryBlueprintSchema
+from ..domain.story_blueprint import StoryBlueprint
+
 # ============================================================
 # STORY AI SERVICE
 # ============================================================
@@ -28,6 +31,7 @@ class StoryAIService:
         system_message=None,
         temperature=1.0,
         max_tokens=None,
+        response_model=None,
     ):
 
         if not user_message or not user_message.strip():
@@ -63,6 +67,7 @@ class StoryAIService:
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            response_model=response_model,
         )
 
         return response
@@ -113,6 +118,75 @@ class StoryAIService:
         )
 
         return response
+
+    # --------------------------------------------------------
+    # GENERATE STORY BLUEPRINT
+    # --------------------------------------------------------
+
+    def generate_story_blueprint(
+        self,
+        project,
+        user_idea,
+        model,
+    ):
+
+        if project is None:
+            raise ValueError("Project cannot be None.")
+
+        if not project.title or not project.title.strip():
+            raise ValueError("Project title cannot be empty.")
+
+        if not user_idea or not user_idea.strip():
+            raise ValueError("User idea cannot be empty.")
+
+        if not model or not model.strip():
+            raise ValueError("Model cannot be empty.")
+
+        system_message = (
+            "You are a creative writing assistant. "
+            "Develop the user's story idea into a detailed story blueprint. "
+            "Preserve the user's creative intent. "
+            "Do not introduce unrelated ideas. "
+            "Make every field meaningful and consistent with the other fields."
+        )
+
+        user_message = (
+            f"Project title: {project.title}\n\n"
+            f"User's idea: {user_idea}\n\n"
+            "Create a complete story blueprint containing:\n"
+            "- Title\n"
+            "- Synopsis\n"
+            "- Genre\n"
+            "- World\n"
+            "- Main characters\n"
+            "- Atmosphere\n"
+            "- Main conflict\n"
+            "- Plot outline\n"
+            "- Story direction"
+        )
+
+        response = self.generate_text(
+            user_message=user_message,
+            system_message=system_message,
+            model=model,
+            temperature=0.8,
+            max_tokens=1500,
+            response_model=StoryBlueprintSchema,
+        )
+
+        blueprint = StoryBlueprint(
+            title=response.title,
+            synopsis=response.synopsis,
+            genre=response.genre,
+            world=response.world,
+            main_characters=response.main_characters,
+            atmosphere=response.atmosphere,
+            main_conflict=response.main_conflict,
+            plot_outline=response.plot_outline,
+            story_direction=response.story_direction,
+        )
+
+        return blueprint
 
 # ============================================================
 # MANUAL TESTS
@@ -295,3 +369,28 @@ if __name__ == "__main__":
         )
     except ValueError as error:
         print(error)
+
+    # --------------------------------------------------------
+    # TEST GENERATE STORY BLUEPRINT
+    # --------------------------------------------------------
+
+    blueprint = service.generate_story_blueprint(
+        project=project,
+        user_idea=(
+            "An exiled prince discovers an ancient prophecy "
+            "that could help him reclaim his kingdom."
+        ),
+        model="gpt-4o",
+    )
+
+    print("\n--- GENERATED STORY BLUEPRINT ---")
+    print(type(blueprint))
+    print(blueprint.title)
+    print(blueprint.synopsis)
+    print(blueprint.genre)
+    print(blueprint.world)
+    print(blueprint.main_characters)
+    print(blueprint.atmosphere)
+    print(blueprint.main_conflict)
+    print(blueprint.plot_outline)
+    print(blueprint.story_direction)

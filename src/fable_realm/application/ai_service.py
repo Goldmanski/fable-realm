@@ -5,7 +5,6 @@
 
 from ..ai.provider import AIRequest
 
-
 # ============================================================
 # AI SERVICE
 # ============================================================
@@ -33,12 +32,14 @@ class AIService:
         messages,
         temperature=1.0,
         max_tokens=None,
+        response_model=None,
     ):
         request = AIRequest(
             model=model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            response_model=response_model,
         )
 
         response = self.provider.generate(request)
@@ -113,3 +114,29 @@ if __name__ == "__main__":
     except ValueError as error:
         print("\n--- UNSUPPORTED PROVIDER ---")
         print(error)
+
+    # --------------------------------------------------------
+    # TEST STRUCTURED RESPONSE
+    # --------------------------------------------------------
+
+    from ..ai.story_blueprint_schema import StoryBlueprintSchema
+
+    structured_response = service.generate(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": "Create a fantasy story blueprint about an exiled prince.",
+            }
+        ],
+        temperature=0.8,
+        max_tokens=1000,
+        response_model=StoryBlueprintSchema,
+    )
+
+    print("\n--- STRUCTURED RESPONSE ---")
+    print(type(structured_response))
+    print(structured_response.title)
+    print(structured_response.synopsis)
+    print(structured_response.genre)
+    print(structured_response.main_characters)
