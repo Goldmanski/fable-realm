@@ -286,7 +286,6 @@ if __name__ == "__main__":
     except ValueError as error:
         print("Invalid max tokens:", error)
 
-
     # --------------------------------------------------------
     # TEST DEPENDENCIES
     # --------------------------------------------------------
@@ -355,7 +354,6 @@ if __name__ == "__main__":
         print(error)
 
     project.title = "The Last Signal"
-
 
     # --------------------------------------------------------
     # TEST INVALID MODEL

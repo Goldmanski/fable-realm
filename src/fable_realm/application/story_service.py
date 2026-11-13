@@ -439,7 +439,6 @@ if __name__ == "__main__":
     print(character.name)
     print(project_character.name)
 
-
     # --------------------------------------------------------
     # DISPLAY WORLD RESULTS
     # --------------------------------------------------------
@@ -451,7 +450,6 @@ if __name__ == "__main__":
     print(story.world.name)
     print(world.name)
     print(project_world.name)
-
 
     # --------------------------------------------------------
     # DISPLAY LOCATION RESULTS
@@ -465,7 +463,6 @@ if __name__ == "__main__":
     print(location.name)
     print(project_location.name)
 
-
     # --------------------------------------------------------
     # DISPLAY ARTIFACT RESULTS
     # --------------------------------------------------------
@@ -478,7 +475,6 @@ if __name__ == "__main__":
     print(artifact.name)
     print(project_artifact.name)
 
-
     # --------------------------------------------------------
     # MODIFY PROJECT COPIES
     # --------------------------------------------------------
@@ -487,7 +483,6 @@ if __name__ == "__main__":
     project_world.name = "New Mars Colony"
     project_location.name = "New Research Station"
     project_artifact.name = "New Ancient Device"
-
 
     # --------------------------------------------------------
     # DISPLAY ORIGINAL AND MODIFIED COPIES
