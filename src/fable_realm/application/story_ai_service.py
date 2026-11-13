@@ -1,6 +1,7 @@
 
 from ..ai.story_blueprint_schema import StoryBlueprintSchema
 from ..domain.story_blueprint import StoryBlueprint
+from ..ai.initial_story_schema import InitialStorySchema
 
 # ============================================================
 # STORY AI SERVICE
@@ -187,6 +188,82 @@ class StoryAIService:
         )
 
         return blueprint
+
+    # --------------------------------------------------------
+    # GENERATE INITIAL STORY
+    # --------------------------------------------------------
+
+    def generate_initial_story(self, blueprint, model):
+        """
+        Generates the initial story content based on an approved StoryBlueprint.
+        """
+
+        assert isinstance(blueprint, StoryBlueprint)
+
+        system_message = """
+        You are an expert fiction writer and story architect.
+
+        Your task is to generate the initial content of a story based
+        on the provided Story Blueprint.
+
+        Follow these rules:
+
+        1. Respect the user's original concept and all Blueprint decisions.
+        2. Preserve the established genre, world, atmosphere and story direction.
+        3. Include all main characters defined in the Blueprint.
+        4. Expand characters with coherent descriptions and roles.
+        5. Create locations, artifacts and relationships where appropriate.
+        6. Generate only the beginning of the story, not the entire plot.
+        7. Include a prologue and several meaningful initial scenes.
+        8. Keep the narrative coherent and internally consistent.
+        9. Dialogue speakers must correspond to defined characters.
+        10. Scene references must correspond to defined characters,
+            locations and artifacts.
+        11. Avoid unnecessary characters, locations and artifacts.
+        12. Generate content suitable for further development by the user.
+
+        Return the result strictly according to the provided response schema.
+        """
+
+        user_message = f"""
+        Generate the initial story content using the following Blueprint.
+
+        TITLE:
+        {blueprint.title}
+
+        SYNOPSIS:
+        {blueprint.synopsis}
+
+        GENRE:
+        {blueprint.genre}
+
+        WORLD:
+        {blueprint.world}
+
+        MAIN CHARACTERS:
+        {blueprint.main_characters}
+
+        ATMOSPHERE:
+        {blueprint.atmosphere}
+
+        MAIN CONFLICT:
+        {blueprint.main_conflict}
+
+        PLOT OUTLINE:
+        {blueprint.plot_outline}
+
+        STORY DIRECTION:
+        {blueprint.story_direction}
+        """
+
+        return self.generate_text(
+            user_message=user_message,
+            system_message=system_message,
+            model=model,
+            temperature=0.8,
+            max_tokens=5000,
+            response_model=InitialStorySchema,
+        )
 
 # ============================================================
 # MANUAL TESTS
@@ -392,3 +469,32 @@ if __name__ == "__main__":
     print(blueprint.main_conflict)
     print(blueprint.plot_outline)
     print(blueprint.story_direction)
+
+    # ============================================================
+    # TEST: GENERATE INITIAL STORY
+    # ============================================================
+
+    print("\nTEST: Generate initial story")
+
+    initial_story = service.generate_initial_story(
+        blueprint=blueprint,
+        model="gpt-4o",
+    )
+
+    assert isinstance(initial_story, InitialStorySchema)
+
+    assert len(initial_story.characters) > 0
+    assert len(initial_story.chapters) > 0
+
+    for chapter in initial_story.chapters:
+        assert len(chapter.scenes) > 0
+
+    print("Generated characters:", len(initial_story.characters))
+    print("Generated chapters:", len(initial_story.chapters))
+
+    for chapter in initial_story.chapters:
+        print(f"\nChapter: {chapter.title}")
+        for scene in chapter.scenes:
+            print(f"  Scene: {scene.title}")
+
+    print("TEST PASSED")
