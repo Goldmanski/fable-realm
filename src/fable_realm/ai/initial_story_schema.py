@@ -41,6 +41,10 @@ class SceneSchema(BaseModel):
     artifacts: list[str] = Field(
         description="Names of important artifacts present in the scene."
     )
+    relationships: list[RelationshipSchema] = Field(
+        default_factory=list,
+        description="Relationships between characters that are relevant in this scene."
+    )
 
 
 class ChapterSchema(BaseModel):
@@ -125,6 +129,14 @@ if __name__ == "__main__":
                         characters=["Elias", "Marcus"],
                         location="Mars Research Station",
                         artifacts=["Ancient Device"],
+                        relationships=[
+                            RelationshipSchema(
+                                character_name="Elias",
+                                related_character_name="Marcus",
+                                relationship_type="Friendship",
+                                description="They have known each other since childhood.",
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -149,6 +161,7 @@ if __name__ == "__main__":
     assert isinstance(scene, SceneSchema)
     assert isinstance(scene.dialogue[0], DialogueLineSchema)
     assert isinstance(initial_story.characters[0], CharacterSchema)
+    assert isinstance(scene.relationships[0], RelationshipSchema)
 
     print("Scene:", scene.title)
     print("Speaker:", scene.dialogue[0].speaker)

@@ -46,6 +46,7 @@ class StoryInitializationService:
         character_ids = {}
         location_ids = {}
         artifact_ids = {}
+        relationship_ids = {}
 
         for index, character in enumerate(initial_story.characters, start=1):
             if character.name in character_ids:
@@ -64,6 +65,19 @@ class StoryInitializationService:
                 raise ValueError(f"Duplicate artifact name: {artifact.name}")
 
             artifact_ids[artifact.name] = index
+
+        for index, relationship in enumerate(initial_story.relationships, start=1):
+
+            relationship_key = (
+                relationship.character_name,
+                relationship.related_character_name,
+                relationship.relationship_type,
+            )
+
+            if relationship_key in relationship_ids:
+                raise ValueError("Duplicate relationship definition.")
+
+            relationship_ids[relationship_key] = index
 
         # ----------------------------------------------------
         # VALIDATE REFERENCES
@@ -101,6 +115,25 @@ class StoryInitializationService:
                 for artifact_name in scene.artifacts:
                     if artifact_name not in artifact_ids:
                         raise ValueError(f"Unknown artifact: {artifact_name}")
+
+                for relationship in scene.relationships:
+
+                    relationship_key = (
+                        relationship.character_name,
+                        relationship.related_character_name,
+                        relationship.relationship_type,
+                    )
+
+                    if relationship_key not in relationship_ids:
+                        raise ValueError("Unknown scene relationship.")
+
+                    if (
+                        relationship.character_name not in scene.characters
+                        or relationship.related_character_name not in scene.characters
+                    ):
+                        raise ValueError(
+                            "Scene relationship characters must be present in the scene."
+                        )
 
                 for dialogue_line in scene.dialogue:
                     if dialogue_line.speaker not in character_ids:
@@ -209,6 +242,20 @@ class StoryInitializationService:
                 for artifact_name in scene_data.artifacts:
                     scene_artifact_ids.append(artifact_ids[artifact_name])
 
+                scene_relationship_ids = []
+
+                for relationship in scene_data.relationships:
+
+                    relationship_key = (
+                        relationship.character_name,
+                        relationship.related_character_name,
+                        relationship.relationship_type,
+                    )
+
+                    scene_relationship_ids.append(
+                        relationship_ids[relationship_key]
+                    )
+
                 scene = Scene(
                     id=scene_id,
                     title=scene_data.title,
@@ -217,6 +264,7 @@ class StoryInitializationService:
                     character_ids=scene_character_ids,
                     location_id=location_ids[scene_data.location],
                     artifact_ids=scene_artifact_ids,
+                    relationship_ids=scene_relationship_ids,
                 )
 
                 if not chapter.add_scene(scene):
@@ -307,6 +355,14 @@ if __name__ == "__main__":
                         characters=["Elias", "Marcus"],
                         location="Mars Research Station",
                         artifacts=["Ancient Device"],
+                        relationships=[
+                            RelationshipSchema(
+                                character_name="Elias",
+                                related_character_name="Marcus",
+                                relationship_type="Friendship",
+                                description="They have known each other since childhood.",
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -425,6 +481,7 @@ if __name__ == "__main__":
     assert scene.character_ids == [1, 2]
     assert scene.location_id == 1
     assert scene.artifact_ids == [1]
+    assert scene.relationship_ids == [1]
 
     print(scene.character_ids)
     print(scene.location_id)

@@ -219,8 +219,12 @@ class StoryAIService:
         9. Dialogue speakers must correspond to defined characters.
         10. Scene references must correspond to defined characters,
             locations and artifacts.
-        11. Avoid unnecessary characters, locations and artifacts.
-        12. Generate content suitable for further development by the user.
+        11. Scene relationships must refer to relationships defined in the global relationships list.
+        12. Include only relationships that are relevant to the events or interactions in a particular scene.
+        13. Do not automatically include a relationship just because both characters are present in the scene.
+        14. If no relationship is relevant to a scene, return an empty relationships list. 
+        15. Avoid unnecessary characters, locations and artifacts.
+        16. Generate content suitable for further development by the user.
 
         Return the result strictly according to the provided response schema.
         """
