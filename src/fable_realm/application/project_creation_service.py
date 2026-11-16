@@ -7,9 +7,10 @@ class ProjectCreationService:
 
     DEFAULT_WORLD_NAME = "Story World"
 
-    def __init__(self, story_service, story_ai_service):
+    def __init__(self, story_service, story_ai_service, story_initialization_service):
         self.story_service = story_service
         self.story_ai_service = story_ai_service
+        self.story_initialization_service = story_initialization_service
 
     def create_empty_project(self, project_id, story_id, world_id, title):
         project = self.story_service.create_project(
@@ -58,7 +59,8 @@ class ProjectCreationService:
         project,
         blueprint,
         story_id,
-        world_id
+        world_id,
+        model
     ):
         story = self.story_service.create_story(
             id=story_id,
@@ -72,10 +74,19 @@ class ProjectCreationService:
             world_description=blueprint.world
         )
 
+        initial_story = self.story_ai_service.generate_initial_story(
+            blueprint=blueprint,
+            model=model
+        )
+
+        self.story_initialization_service.initialize_story(
+            story=story,
+            initial_story=initial_story
+        )
+
         project.attach_story(story.id)
 
         return project, story
-
 
 # ============================================================
 # MANUAL TESTS
@@ -87,10 +98,13 @@ if __name__ == "__main__":
     from .story_ai_service import StoryAIService
     from .ai_service import AIService
     from ..ai.provider_factory import AIProviderFactory
+    from .story_initialization_service import StoryInitializationService
 
     # --------------------------------------------------------
     # CREATE SERVICES
     # --------------------------------------------------------
+
+    story_initialization_service = StoryInitializationService()
 
     story_service = StoryService()
 
@@ -114,6 +128,7 @@ if __name__ == "__main__":
     service = ProjectCreationService(
         story_service=story_service,
         story_ai_service=story_ai_service,
+        story_initialization_service=story_initialization_service,
     )
 
     # --------------------------------------------------------
@@ -217,7 +232,8 @@ if __name__ == "__main__":
         blueprint=blueprint,
         story_id=20,
         world_id=21,
-)
+        model="gpt-4o",
+    )
 
     # Verify project and story relationship.
     assert project.id == 2
@@ -239,6 +255,10 @@ if __name__ == "__main__":
     # Verify world.
     assert story.world.id == 21
     assert story.world.name == "Story World"
+
+    # Verify initial story initialization.
+    assert story.chapters
+    assert story.characters
 
     print("Project ID:", project.id)
     print("Story ID:", story.id)
