@@ -11,6 +11,7 @@ from .world import World
 from .location import Location
 from .artifact import Artifact
 from .relationship import Relationship
+from .illustration import Illustration
 
 # ============================================================
 # STORY
@@ -38,6 +39,7 @@ class Story:
         self.locations = []
         self.artifacts = []
         self.relationships = []
+        self.illustrations = []
 
     # --------------------------------------------------------
     # PUBLIC METHODS
@@ -98,6 +100,14 @@ class Story:
         self.relationships.append(relationship)
         return True
 
+    def add_illustration(self, illustration):
+
+        if self.get_illustration(illustration.id) is not None:
+            return False
+
+        self.illustrations.append(illustration)
+        return True
+
     # --------------------------------------------------------
     # GET ELEMENTS
     # --------------------------------------------------------
@@ -146,6 +156,14 @@ class Story:
         for relationship in self.relationships:
             if relationship.id == relationship_id:
                 return relationship
+
+        return None
+
+    def get_illustration(self, illustration_id):
+
+        for illustration in self.illustrations:
+            if illustration.id == illustration_id:
+                return illustration
 
         return None
 
@@ -300,6 +318,21 @@ class Story:
                 return True
 
         return False
+
+    def remove_illustration(self, illustration_id):
+
+        illustration = self.get_illustration(illustration_id)
+
+        if illustration is None:
+            return False
+
+        for chapter in self.chapters:
+            for scene in chapter.scenes:
+                if scene.illustration_id == illustration_id:
+                    return False
+
+        self.illustrations.remove(illustration)
+        return True
 
     # --------------------------------------------------------
     # REORDER CHAPTERS
@@ -748,3 +781,65 @@ if __name__ == "__main__":
     print(story.get_world(1))
     print(story.get_location(1))
     print(story.get_artifact(1))
+
+    # --------------------------------------------------------
+    # ILLUSTRATION MANAGEMENT
+    # --------------------------------------------------------
+
+    print("\n--- ILLUSTRATION MANAGEMENT ---")
+
+    from datetime import datetime
+
+    illustration = Illustration(
+        id=1,
+        storage_key="stories/1/scenes/1/illustration.png",
+        content_type="image/png",
+        prompt="A spaceship landing on Mars.",
+        created_at=datetime(2026, 11, 16, 10, 0, 0),
+    )
+
+    # ADD ILLUSTRATION
+
+    assert story.add_illustration(illustration) is True
+    assert len(story.illustrations) == 1
+
+    # TEST DUPLICATE ID
+
+    duplicate_illustration = Illustration(
+        id=1,
+        storage_key="duplicate.png",
+        content_type="image/png",
+        prompt="Duplicate illustration.",
+        created_at=datetime(2026, 11, 16, 10, 0, 0),
+    )
+
+    assert story.add_illustration(duplicate_illustration) is False
+    assert len(story.illustrations) == 1
+
+    # GET ILLUSTRATION
+
+    retrieved_illustration = story.get_illustration(1)
+
+    assert retrieved_illustration is illustration
+    assert story.get_illustration(999) is None
+
+    # PREVENT REMOVAL WHEN REFERENCED
+
+    scene_1.illustration_id = illustration.id
+
+    assert story.remove_illustration(1) is False
+    assert story.get_illustration(1) is illustration
+
+    # REMOVE AFTER CLEARING REFERENCE
+
+    scene_1.illustration_id = None
+
+    assert story.remove_illustration(1) is True
+    assert story.get_illustration(1) is None
+
+    # TEST NONEXISTENT ILLUSTRATION
+
+    assert story.remove_illustration(999) is False
+
+    print("ILLUSTRATION TESTS PASSED")
+    
