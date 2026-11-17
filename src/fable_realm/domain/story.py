@@ -264,25 +264,54 @@ class Story:
     
     def remove_character(self, character_id):
 
-        for character in self.characters:
-            if character.id == character_id:
+        character = self.get_character(character_id)
 
-                self.characters.remove(character)
+        if character is None:
+            return False
 
-                new_relationships = []
+        # Remove character
+        self.characters.remove(character)
 
-                for relationship in self.relationships:
-                    if (
-                        relationship.character_id != character_id
-                        and relationship.related_character_id != character_id
-                    ):
-                        new_relationships.append(relationship)
+        # Find relationships involving the character
+        removed_relationship_ids = []
 
-                self.relationships = new_relationships
+        for relationship in self.relationships:
+            if (
+                relationship.character_id == character_id
+                or relationship.related_character_id == character_id
+            ):
+                removed_relationship_ids.append(relationship.id)
 
-                return True
+        # Remove relationships
+        self.relationships = [
+            relationship
+            for relationship in self.relationships
+            if relationship.id not in removed_relationship_ids
+        ]
 
-        return False
+        # Clean scene references
+        for chapter in self.chapters:
+            for scene in chapter.scenes:
+
+                # Remove character ID
+                scene.character_ids = [
+                    id for id in scene.character_ids
+                    if id != character_id
+                ]
+
+                # Remove character dialogue
+                scene.dialogue = [
+                    line for line in scene.dialogue
+                    if line.speaker_character_id != character_id
+                ]
+
+                # Remove deleted relationship IDs
+                scene.relationship_ids = [
+                    id for id in scene.relationship_ids
+                    if id not in removed_relationship_ids
+                ]
+
+        return True
 
     def remove_world(self, world_id):
 
@@ -294,30 +323,55 @@ class Story:
 
     def remove_location(self, location_id):
 
-        for location in self.locations:
-            if location.id == location_id:
-                self.locations.remove(location)
-                return True
+        location = self.get_location(location_id)
 
-        return False
+        if location is None:
+            return False
+
+        self.locations.remove(location)
+
+        for chapter in self.chapters:
+            for scene in chapter.scenes:
+                if scene.location_id == location_id:
+                    scene.location_id = None
+
+        return True
 
     def remove_artifact(self, artifact_id):
 
-        for artifact in self.artifacts:
-            if artifact.id == artifact_id:
-                self.artifacts.remove(artifact)
-                return True
+        artifact = self.get_artifact(artifact_id)
 
-        return False
+        if artifact is None:
+            return False
+
+        self.artifacts.remove(artifact)
+
+        for chapter in self.chapters:
+            for scene in chapter.scenes:
+                scene.artifact_ids = [
+                    id for id in scene.artifact_ids
+                    if id != artifact_id
+                ]
+
+        return True
 
     def remove_relationship(self, relationship_id):
 
-        for relationship in self.relationships:
-            if relationship.id == relationship_id:
-                self.relationships.remove(relationship)
-                return True
+        relationship = self.get_relationship(relationship_id)
 
-        return False
+        if relationship is None:
+            return False
+
+        self.relationships.remove(relationship)
+
+        for chapter in self.chapters:
+            for scene in chapter.scenes:
+                scene.relationship_ids = [
+                    id for id in scene.relationship_ids
+                    if id != relationship_id
+                ]
+
+        return True
 
     def remove_illustration(self, illustration_id):
 
@@ -764,8 +818,33 @@ if __name__ == "__main__":
     )
 
     print(story.add_relationship(cascade_relationship))
+
+    from .scene import DialogueLine
+
+    # Add references to scene
+    scene_1.character_ids = [1, 2]
+    scene_1.relationship_ids = [2]
+    scene_1.location_id = 1
+    scene_1.artifact_ids = [1]
+
+    # Add dialogue lines
+    scene_1.dialogue = [
+        DialogueLine(1, 1, "Hello!"),
+        DialogueLine(2, 2, "Hi!"),
+    ]
+
+    # REMOVE CHARACTER
+
     print(story.remove_character(1))
     print(story.get_relationship(2))
+
+    # VERIFY CHARACTER REFERENCES
+    assert scene_1.character_ids == [2]
+    assert len(scene_1.dialogue) == 1
+    assert scene_1.dialogue[0].speaker_character_id == 2
+    assert scene_1.relationship_ids == []
+
+    # REMOVE OTHER ELEMENTS
 
     print(story.remove_world(1))
     print(story.remove_location(1))
@@ -781,6 +860,13 @@ if __name__ == "__main__":
     print(story.get_world(1))
     print(story.get_location(1))
     print(story.get_artifact(1))
+
+    # VERIFY SCENE REFERENCES
+
+    assert scene_1.location_id is None
+    assert scene_1.artifact_ids == []
+
+    print("REMOVE ELEMENTS TESTS PASSED")
 
     # --------------------------------------------------------
     # ILLUSTRATION MANAGEMENT
