@@ -1,3 +1,5 @@
+from ..ai.image_provider import ImageRequest
+from ..domain.illustration import Illustration
 
 class ProjectCreationService:
     DEFAULT_GENRE = "Fantasy"
@@ -7,10 +9,19 @@ class ProjectCreationService:
 
     DEFAULT_WORLD_NAME = "Story World"
 
-    def __init__(self, story_service, story_ai_service, story_initialization_service):
+    def __init__(
+        self,
+        story_service,
+        story_ai_service,
+        story_initialization_service,
+        image_provider,
+        image_storage,
+    ):
         self.story_service = story_service
         self.story_ai_service = story_ai_service
         self.story_initialization_service = story_initialization_service
+        self.image_provider = image_provider
+        self.image_storage = image_storage
 
     def create_empty_project(self, project_id, story_id, world_id, title):
         project = self.story_service.create_project(
@@ -99,6 +110,7 @@ if __name__ == "__main__":
     from .ai_service import AIService
     from ..ai.provider_factory import AIProviderFactory
     from .story_initialization_service import StoryInitializationService
+    import streamlit as st
 
     # --------------------------------------------------------
     # CREATE SERVICES
@@ -113,12 +125,26 @@ if __name__ == "__main__":
     ai_service = AIService(
         provider_factory=factory,
         provider_name="openai",
-        api_key="API_KEY",
+        api_key=st.secrets["openai"]["api_key"],
     )
 
     story_ai_service = StoryAIService(
         ai_service=ai_service,
         story_service=story_service,
+    )
+
+    from ..ai.openai_image_provider import OpenAIImageProvider
+    from ..infrastructure.digital_ocean_image_storage import DigitalOceanImageStorage
+
+    image_provider = OpenAIImageProvider(
+        api_key=st.secrets["openai"]["api_key"]
+    )
+
+    image_storage = DigitalOceanImageStorage(
+        access_key=st.secrets["spaces"]["access_key"],
+        secret_key=st.secrets["spaces"]["secret_key"],
+        region=st.secrets["spaces"]["region"],
+        bucket_name=st.secrets["spaces"]["bucket_name"],
     )
 
     # --------------------------------------------------------
@@ -129,6 +155,8 @@ if __name__ == "__main__":
         story_service=story_service,
         story_ai_service=story_ai_service,
         story_initialization_service=story_initialization_service,
+        image_provider=image_provider,
+        image_storage=image_storage,
     )
 
     # --------------------------------------------------------
