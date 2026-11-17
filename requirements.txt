@@ -10,6 +10,7 @@ st-paywall==0.1.8
 
 # Database
 psycopg2-binary==2.9.12
+boto3==1.35.93
 
 # Numerical dependencies
 numpy==1.26.4
