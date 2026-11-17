@@ -61,8 +61,10 @@ if __name__ == "__main__":
 
     print("\n=== CREATE ===")
 
+    import streamlit as st
+
     provider = OpenAIImageProvider(
-        api_key="API_KEY"
+        api_key=st.secrets["openai"]["api_key"]
     )
 
     assert isinstance(provider, OpenAIImageProvider)
