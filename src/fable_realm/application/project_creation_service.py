@@ -1,13 +1,35 @@
+
+# ============================================================
+# IMPORTS
+# ============================================================
+
+from datetime import datetime
+from uuid import uuid4
+
 from ..ai.image_provider import ImageRequest
 from ..domain.illustration import Illustration
 
+
+# ============================================================
+# PROJECT CREATION SERVICE
+# ============================================================
+
 class ProjectCreationService:
+
+    # --------------------------------------------------------
+    # CONSTANTS
+    # --------------------------------------------------------
+
     DEFAULT_GENRE = "Fantasy"
     DEFAULT_TONE = "Balanced"
     DEFAULT_LENGTH = "Medium"
     DEFAULT_CREATIVITY = 0.5
 
     DEFAULT_WORLD_NAME = "Story World"
+
+    # --------------------------------------------------------
+    # INITIALIZATION
+    # --------------------------------------------------------
 
     def __init__(
         self,
@@ -23,7 +45,12 @@ class ProjectCreationService:
         self.image_provider = image_provider
         self.image_storage = image_storage
 
+    # --------------------------------------------------------
+    # PROJECT CREATION
+    # --------------------------------------------------------
+
     def create_empty_project(self, project_id, story_id, world_id, title):
+
         project = self.story_service.create_project(
             id=project_id,
             title=title
@@ -45,6 +72,10 @@ class ProjectCreationService:
 
         return project, story
 
+    # --------------------------------------------------------
+    # BLUEPRINT GENERATION
+    # --------------------------------------------------------
+
     def generate_project_blueprint(
         self,
         project_id,
@@ -52,6 +83,7 @@ class ProjectCreationService:
         user_idea,
         model
     ):
+
         project = self.story_service.create_project(
             id=project_id,
             title=project_title
@@ -65,6 +97,10 @@ class ProjectCreationService:
 
         return project, blueprint
 
+    # --------------------------------------------------------
+    # PROJECT COMPLETION
+    # --------------------------------------------------------
+
     def complete_project_from_blueprint(
         self,
         project,
@@ -73,6 +109,7 @@ class ProjectCreationService:
         world_id,
         model
     ):
+
         story = self.story_service.create_story(
             id=story_id,
             world_id=world_id,
@@ -95,9 +132,234 @@ class ProjectCreationService:
             initial_story=initial_story
         )
 
+        self._generate_scene_illustrations(
+            story=story,
+            blueprint=blueprint,
+            image_model="gpt-image-2.5-flare",
+        )
+
         project.attach_story(story.id)
 
         return project, story
+
+    # --------------------------------------------------------
+    # ILLUSTRATION PROMPTS
+    # --------------------------------------------------------
+
+    def _build_illustration_style_prompt(self, blueprint):
+
+        return (
+            "Create illustrations using one consistent visual style "
+            "throughout the entire story. "
+            "The visual style should reflect the following elements:\n"
+            f"Genre: {blueprint.genre}\n"
+            f"World: {blueprint.world}\n"
+            f"Atmosphere: {blueprint.atmosphere}\n"
+            f"Story direction: {blueprint.story_direction}\n"
+            "Maintain consistent artistic direction, color palette, "
+            "lighting, and visual atmosphere across all illustrations."
+        )
+
+    def _build_scene_prompt(self, story, scene, style_prompt):
+
+        prompt_parts = [
+            style_prompt,
+            "",
+            "SCENE:",
+            f"Title: {scene.title}",
+            f"Content: {scene.content}",
+            "",
+            "CHARACTERS:",
+        ]
+
+        for character_id in scene.character_ids:
+
+            character = story.get_character(character_id)
+
+            if character is not None:
+                prompt_parts.append(
+                    f"{character.name}: {character.description}. "
+                    f"Role: {character.role}."
+                )
+
+        prompt_parts.extend(["", "LOCATION:"])
+
+        location = story.get_location(scene.location_id)
+
+        if location is not None:
+            prompt_parts.append(
+                f"{location.name}: {location.description}"
+            )
+
+        prompt_parts.extend(["", "ARTIFACTS:"])
+
+        for artifact_id in scene.artifact_ids:
+
+            artifact = story.get_artifact(artifact_id)
+
+            if artifact is not None:
+                prompt_parts.append(
+                    f"{artifact.name}: {artifact.description}"
+                )
+
+        prompt_parts.extend(["", "RELATIONSHIPS:"])
+
+        for relationship_id in scene.relationship_ids:
+
+            relationship = story.get_relationship(relationship_id)
+
+            if relationship is not None:
+
+                character = story.get_character(
+                    relationship.character_id
+                )
+
+                related_character = story.get_character(
+                    relationship.related_character_id
+                )
+
+                if character is not None and related_character is not None:
+                    prompt_parts.append(
+                        f"{character.name} and {related_character.name}: "
+                        f"{relationship.relationship_type}. "
+                        f"{relationship.description}"
+                    )
+
+        prompt_parts.extend(["", "DIALOGUE:"])
+
+        for dialogue_line in scene.dialogue:
+
+            character = story.get_character(
+                dialogue_line.speaker_character_id
+            )
+
+            if character is not None:
+                prompt_parts.append(
+                    f"{character.name}: {dialogue_line.text}"
+                )
+
+        prompt_parts.extend([
+            "",
+            "ILLUSTRATION INSTRUCTIONS:",
+            "Create an illustration that visually represents this scene.",
+            "Use the dialogue and relationships as context for the scene.",
+            "Do not include written dialogue or captions in the image.",
+        ])
+
+        return "\n".join(prompt_parts)
+
+    # --------------------------------------------------------
+    # ILLUSTRATION GENERATION
+    # --------------------------------------------------------
+
+    def _generate_scene_illustration(
+        self,
+        story,
+        scene,
+        style_prompt,
+        image_model,
+        saved_storage_keys,
+        created_illustration_ids,
+    ):
+
+        prompt = self._build_scene_prompt(
+            story=story,
+            scene=scene,
+            style_prompt=style_prompt,
+        )
+
+        request = ImageRequest(
+            model=image_model,
+            prompt=prompt,
+        )
+
+        response = self.image_provider.generate(request)
+
+        storage_key = (
+            f"stories/{story.id}/"
+            f"scenes/{scene.id}/illustration.png"
+        )
+
+        saved_storage_keys.append(storage_key)
+
+        self.image_storage.save(
+            storage_key=storage_key,
+            image_data=response.image_data,
+            content_type=response.content_type,
+        )
+
+        illustration = Illustration(
+            id=str(uuid4()),
+            storage_key=storage_key,
+            content_type=response.content_type,
+            prompt=prompt,
+            created_at=datetime.now(),
+        )
+
+        if not story.add_illustration(illustration):
+            raise ValueError(
+                f"Could not add illustration for scene {scene.id}."
+            )
+
+        created_illustration_ids.append(illustration.id)
+
+        scene.illustration_id = illustration.id
+
+        return illustration
+
+    def _generate_scene_illustrations(
+        self,
+        story,
+        blueprint,
+        image_model,
+    ):
+
+        style_prompt = self._build_illustration_style_prompt(
+            blueprint
+        )
+
+        saved_storage_keys = []
+        created_illustration_ids = []
+
+        try:
+
+            for chapter in story.chapters:
+
+                for scene in chapter.scenes:
+
+                    self._generate_scene_illustration(
+                        story=story,
+                        scene=scene,
+                        style_prompt=style_prompt,
+                        image_model=image_model,
+                        saved_storage_keys=saved_storage_keys,
+                        created_illustration_ids=created_illustration_ids,
+                    )
+
+        except Exception:
+
+            # Remove references to created illustrations.
+            for chapter in story.chapters:
+
+                for scene in chapter.scenes:
+
+                    if scene.illustration_id in created_illustration_ids:
+                        scene.illustration_id = None
+
+            # Remove created illustrations from Story.
+            for illustration_id in created_illustration_ids:
+                story.remove_illustration(illustration_id)
+
+            # Remove saved images from DigitalOcean Spaces.
+            for storage_key in saved_storage_keys:
+
+                try:
+                    self.image_storage.delete(storage_key)
+
+                except Exception:
+                    pass
+
+            raise
 
 # ============================================================
 # MANUAL TESTS
