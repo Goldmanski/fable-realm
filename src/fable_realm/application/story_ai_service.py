@@ -1,4 +1,5 @@
 
+from ..ai.provider import AIResponse
 from ..ai.story_blueprint_schema import StoryBlueprintSchema
 from ..domain.story_blueprint import StoryBlueprint
 from ..ai.initial_story_schema import InitialStorySchema
@@ -176,18 +177,22 @@ class StoryAIService:
         )
 
         blueprint = StoryBlueprint(
-            title=response.title,
-            synopsis=response.synopsis,
-            genre=response.genre,
-            world=response.world,
-            main_characters=response.main_characters,
-            atmosphere=response.atmosphere,
-            main_conflict=response.main_conflict,
-            plot_outline=response.plot_outline,
-            story_direction=response.story_direction,
+            title=response.content.title,
+            synopsis=response.content.synopsis,
+            genre=response.content.genre,
+            world=response.content.world,
+            main_characters=response.content.main_characters,
+            atmosphere=response.content.atmosphere,
+            main_conflict=response.content.main_conflict,
+            plot_outline=response.content.plot_outline,
+            story_direction=response.content.story_direction,
         )
 
-        return blueprint
+        return AIResponse(
+            content=blueprint,
+            model=response.model,
+            usage=response.usage,
+        )
 
     # --------------------------------------------------------
     # GENERATE INITIAL STORY
@@ -452,7 +457,7 @@ if __name__ == "__main__":
     # TEST GENERATE STORY BLUEPRINT
     # --------------------------------------------------------
 
-    blueprint = service.generate_story_blueprint(
+    blueprint_response = service.generate_story_blueprint(
         project=project,
         user_idea=(
             "An exiled prince discovers an ancient prophecy "
@@ -460,6 +465,8 @@ if __name__ == "__main__":
         ),
         model="gpt-4o",
     )
+
+    blueprint = blueprint_response.content
 
     print("\n--- GENERATED STORY BLUEPRINT ---")
     print(type(blueprint))
@@ -479,10 +486,12 @@ if __name__ == "__main__":
 
     print("\nTEST: Generate initial story")
 
-    initial_story = service.generate_initial_story(
+    initial_story_response = service.generate_initial_story(
         blueprint=blueprint,
         model="gpt-4o",
     )
+
+    initial_story = initial_story_response.content
 
     assert isinstance(initial_story, InitialStorySchema)
 

@@ -93,11 +93,11 @@ if __name__ == "__main__":
     # TEST AI USAGE
     # --------------------------------------------------------
 
-    if response.usage is not None:
+    if response.usage:
         print("\n--- AI USAGE ---")
-        print(response.usage.input_tokens)
-        print(response.usage.output_tokens)
-        print(response.usage.total_tokens)
+        print(response.usage["prompt_tokens"])
+        print(response.usage["completion_tokens"])
+        print(response.usage["total_tokens"])
 
     # --------------------------------------------------------
     # TEST UNSUPPORTED PROVIDER
@@ -133,9 +133,9 @@ if __name__ == "__main__":
         response_model=StoryBlueprintSchema,
     )
 
-    print("\n--- STRUCTURED RESPONSE ---")
     print(type(structured_response))
-    print(structured_response.title)
-    print(structured_response.synopsis)
-    print(structured_response.genre)
-    print(structured_response.main_characters)
+    print(type(structured_response.content))
+    print(structured_response.content.title)
+    print(structured_response.content.synopsis)
+    print(structured_response.content.genre)
+    print(structured_response.content.main_characters)

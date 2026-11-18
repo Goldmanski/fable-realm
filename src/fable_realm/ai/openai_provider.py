@@ -9,7 +9,6 @@ from .provider import (
     AIProvider,
     AIRequest,
     AIResponse,
-    AIUsage,
     AIProviderError,
 )
 
@@ -31,26 +30,26 @@ class OpenAIProvider(AIProvider):
     # --------------------------------------------------------
 
     def generate(self, request):
-
         try:
-
             if request.response_model is not None:
-                response = self.instructor_client.chat.completions.create(
+                content, response = (
+                    self.instructor_client.chat.completions.create_with_completion(
+                        model=request.model,
+                        messages=request.messages,
+                        temperature=request.temperature,
+                        max_tokens=request.max_tokens,
+                        response_model=request.response_model,
+                    )
+                )
+            else:
+                response = self.client.chat.completions.create(
                     model=request.model,
                     messages=request.messages,
                     temperature=request.temperature,
                     max_tokens=request.max_tokens,
-                    response_model=request.response_model,
                 )
 
-                return response
-
-            response = self.client.chat.completions.create(
-                model=request.model,
-                messages=request.messages,
-                temperature=request.temperature,
-                max_tokens=request.max_tokens,
-            )
+                content = response.choices[0].message.content
 
         except OpenAIError as error:
             raise AIProviderError(
@@ -60,14 +59,14 @@ class OpenAIProvider(AIProvider):
         usage = {}
 
         if response.usage is not None:
-            usage = AIUsage(
-                input_tokens=response.usage.prompt_tokens,
-                output_tokens=response.usage.completion_tokens,
-                total_tokens=response.usage.total_tokens,
-            )
+            usage = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens,
+            }
 
         return AIResponse(
-            content=response.choices[0].message.content,
+            content=content,
             model=response.model,
             usage=usage,
         )
@@ -78,17 +77,19 @@ class OpenAIProvider(AIProvider):
 
 if __name__ == "__main__":
 
+    import streamlit as st
+
+    provider = OpenAIProvider(api_key=st.secrets["openai"]["api_key"])
+
     # --------------------------------------------------------
     # TEST OPENAI PROVIDER
     # --------------------------------------------------------
-
-    provider = OpenAIProvider(api_key="API_KEY")
 
     print("\n--- OPENAI PROVIDER ---")
     print(provider.client)
 
     # --------------------------------------------------------
-    # TEST GENERATE
+    # TEST GENERATE - PLAIN TEXT
     # --------------------------------------------------------
 
     request = AIRequest(
@@ -105,29 +106,7 @@ if __name__ == "__main__":
     print("\n--- AI RESPONSE ---")
     print(response.content)
     print(response.model)
-
-    # --------------------------------------------------------
-    # TEST AI USAGE
-    # --------------------------------------------------------
-
-    if response.usage is not None:
-        print("\n--- AI USAGE ---")
-        print(response.usage.input_tokens)
-        print(response.usage.output_tokens)
-        print(response.usage.total_tokens)
-
-    # --------------------------------------------------------
-    # TEST AI RESPONSE WITHOUT USAGE
-    # --------------------------------------------------------
-
-    response_without_usage = AIResponse(
-        content="A new story begins.",
-        model="gpt-4o",
-    )
-
-    print("\n--- AI RESPONSE WITHOUT USAGE ---")
-    print(response_without_usage.content)
-    print(response_without_usage.usage)
+    print(response.usage)
 
     # --------------------------------------------------------
     # TEST AI PROVIDER ERROR
@@ -162,8 +141,9 @@ if __name__ == "__main__":
 
     print("\n--- STRUCTURED RESPONSE ---")
     print(type(structured_response))
-    print(structured_response.title)
-    print(structured_response.synopsis)
-    print(structured_response.genre)
-    print(structured_response.main_characters)
-
+    print(type(structured_response.content))
+    print(structured_response.content.title)
+    print(structured_response.content.synopsis)
+    print(structured_response.content.genre)
+    print(structured_response.content.main_characters)
+    print(structured_response.usage)

@@ -89,11 +89,13 @@ class ProjectCreationService:
             title=project_title
         )
 
-        blueprint = self.story_ai_service.generate_story_blueprint(
+        blueprint_response = self.story_ai_service.generate_story_blueprint(
             project=project,
             user_idea=user_idea,
             model=model
         )
+
+        blueprint = blueprint_response.content
 
         return project, blueprint
 
@@ -122,10 +124,12 @@ class ProjectCreationService:
             world_description=blueprint.world
         )
 
-        initial_story = self.story_ai_service.generate_initial_story(
+        initial_story_response = self.story_ai_service.generate_initial_story(
             blueprint=blueprint,
             model=model
         )
+
+        initial_story = initial_story_response.content
 
         self.story_initialization_service.initialize_story(
             story=story,

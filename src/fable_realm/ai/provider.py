@@ -19,27 +19,11 @@ class AIRequest:
         self.response_model = response_model
 
 # ============================================================
-# AI USAGE
-# ============================================================
-
-class AIUsage:
-
-    def __init__(
-        self,
-        input_tokens,
-        output_tokens,
-        total_tokens,
-    ):
-        self.input_tokens = input_tokens
-        self.output_tokens = output_tokens
-        self.total_tokens = total_tokens
-
-# ============================================================
 # AI RESPONSE
 # ============================================================
 
 class AIResponse:
-    
+
     def __init__(
         self,
         content,
@@ -48,11 +32,7 @@ class AIResponse:
     ):
         self.content = content
         self.model = model
-
-        if usage is None:
-            self.usage = {}
-        else:
-            self.usage = usage
+        self.usage = usage if usage is not None else {}
 
 # ============================================================
 # AI PROVIDER ERROR
@@ -103,47 +83,23 @@ if __name__ == "__main__":
     print(request.max_tokens)
 
     # --------------------------------------------------------
-    # TEST AI USAGE
-    # --------------------------------------------------------
-
-    usage = AIUsage(
-        input_tokens=150,
-        output_tokens=300,
-        total_tokens=450,
-    )
-
-    print("\n--- AI USAGE ---")
-    print(usage.input_tokens)
-    print(usage.output_tokens)
-    print(usage.total_tokens)
-
-    # --------------------------------------------------------
     # TEST AI RESPONSE
     # --------------------------------------------------------
 
     response = AIResponse(
         content="A mysterious signal came from Mars.",
         model="gpt-4o",
-        usage=usage,
+        usage={
+            "prompt_tokens": 150,
+            "completion_tokens": 300,
+            "total_tokens": 450,
+        },
     )
 
     print("\n--- AI RESPONSE ---")
     print(response.content)
     print(response.model)
-    print(response.usage.total_tokens)
-
-    # --------------------------------------------------------
-    # TEST AI RESPONSE WITHOUT USAGE
-    # --------------------------------------------------------
-
-    response_without_usage = AIResponse(
-        content="A new story begins.",
-        model="gpt-4o",
-    )
-
-    print("\n--- AI RESPONSE WITHOUT USAGE ---")
-    print(response_without_usage.content)
-    print(response_without_usage.usage)
+    print(response.usage["total_tokens"])
 
     # --------------------------------------------------------
     # TEST AI PROVIDER
