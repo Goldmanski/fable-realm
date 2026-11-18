@@ -550,6 +550,73 @@ if __name__ == "__main__":
     assert story.chapters
     assert story.characters
 
+    # --------------------------------------------------------
+    # VERIFY: GENERATED ILLUSTRATIONS
+    # --------------------------------------------------------
+
+    print("\n--- VERIFY: GENERATED ILLUSTRATIONS ---")
+
+    scenes = []
+
+    for chapter in story.chapters:
+        for scene in chapter.scenes:
+            scenes.append(scene)
+
+    # Verify the number of illustrations.
+    assert len(story.illustrations) == len(scenes)
+
+    # Collect illustration IDs.
+    illustration_ids = []
+
+    for illustration in story.illustrations:
+        illustration_ids.append(illustration.id)
+
+    # Verify that all illustration IDs are unique.
+    assert len(illustration_ids) == len(set(illustration_ids))
+
+    # Verify scene references.
+    for scene in scenes:
+
+        assert scene.illustration_id is not None
+
+        illustration = story.get_illustration(
+            scene.illustration_id
+        )
+
+        assert illustration is not None
+
+        print(
+            f"Scene {scene.id} -> Illustration {illustration.id}"
+        )
+
+    print("Number of scenes:", len(scenes))
+    print("Number of illustrations:", len(story.illustrations))
+    print("Illustration IDs are unique.")
+    print("All scene references are valid.")
+
+    # --------------------------------------------------------
+    # VERIFY: IMAGE STORAGE
+    # --------------------------------------------------------
+
+    print("\n--- VERIFY: IMAGE STORAGE ---")
+
+    for illustration in story.illustrations:
+
+        image_data = image_storage.get(
+            illustration.storage_key
+        )
+
+        assert isinstance(image_data, bytes)
+        assert len(image_data) > 0
+
+        print(
+            f"Image retrieved: {illustration.storage_key}"
+        )
+        print("Image size:", len(image_data), "bytes")
+
+    print("All illustrations are saved in DigitalOcean Spaces.")
+
+
     print("Project ID:", project.id)
     print("Story ID:", story.id)
     print("Story title:", story.title)
@@ -557,6 +624,125 @@ if __name__ == "__main__":
     print("World:", story.world.name)
 
     print("TEST 3 PASSED")
+    
+    # --------------------------------------------------------
+    # TEST 4: ILLUSTRATION GENERATION ROLLBACK
+    # --------------------------------------------------------
+
+    from ..ai.image_provider import ImageResponse
+    from ..domain.chapter import Chapter
+    from ..domain.scene import Scene
+
+    print("\n--- TEST 4: ILLUSTRATION GENERATION ROLLBACK ---")
+
+    # CREATE TEST STORY
+
+    rollback_story = story_service.create_story(
+        id=30,
+        world_id=31,
+        title="Rollback Test",
+        genre="Fantasy",
+        tone="Balanced",
+        length="Short",
+        creativity=0.5,
+        world_name="Test World",
+        world_description="Test world.",
+    )
+
+    chapter = Chapter(
+        id=32,
+        number=1,
+        title="Test Chapter",
+    )
+
+    scene_1 = Scene(
+        id=33,
+        title="First Scene",
+        content="The first scene.",
+    )
+
+    scene_2 = Scene(
+        id=34,
+        title="Second Scene",
+        content="The second scene.",
+    )
+
+    chapter.add_scene(scene_1)
+    chapter.add_scene(scene_2)
+    rollback_story.add_chapter(chapter)
+
+    # SIMULATE GENERATION FAILURE
+
+    original_generate = image_provider.generate
+    call_count = [0]
+
+    def generate_with_failure(request):
+
+        call_count[0] += 1
+
+        if call_count[0] == 2:
+            raise RuntimeError("Simulated generation failure.")
+
+        return ImageResponse(
+            image_data=b"Test image data",
+            content_type="image/png",
+        )
+
+    image_provider.generate = generate_with_failure
+
+    # EXECUTE ROLLBACK
+
+    error_caught = False
+
+    try:
+
+        service._generate_scene_illustrations(
+            story=rollback_story,
+            blueprint=blueprint,
+            image_model="test-model",
+        )
+
+    except RuntimeError as error:
+
+        error_caught = True
+        print("Expected error:", error)
+
+    finally:
+
+        image_provider.generate = original_generate
+
+    # VERIFY ROLLBACK
+
+    assert error_caught is True
+    assert call_count[0] == 2
+
+    assert scene_1.illustration_id is None
+    assert scene_2.illustration_id is None
+
+    assert len(rollback_story.illustrations) == 0
+
+    # VERIFY IMAGE REMOVED FROM STORAGE
+
+    storage_key = (
+        f"stories/{rollback_story.id}/"
+        f"scenes/{scene_1.id}/illustration.png"
+    )
+
+    try:
+
+        image_storage.get(storage_key)
+
+    except FileNotFoundError:
+        print("Image successfully removed from storage.")
+
+    else:
+        raise AssertionError("Image was not removed from storage.")
+
+    print("Scene references cleared.")
+    print("Story illustrations removed.")
+    print("Original exception propagated.")
+    print("TEST 4 PASSED")
+
 
     # --------------------------------------------------------
     # TEST SUMMARY
