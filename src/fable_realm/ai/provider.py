@@ -39,7 +39,7 @@ class AIUsage:
 # ============================================================
 
 class AIResponse:
-
+    
     def __init__(
         self,
         content,
@@ -48,7 +48,11 @@ class AIResponse:
     ):
         self.content = content
         self.model = model
-        self.usage = usage
+
+        if usage is None:
+            self.usage = {}
+        else:
+            self.usage = usage
 
 # ============================================================
 # AI PROVIDER ERROR

@@ -57,7 +57,7 @@ class OpenAIProvider(AIProvider):
                 f"OpenAI request failed: {error}"
             ) from error
 
-        usage = None
+        usage = {}
 
         if response.usage is not None:
             usage = AIUsage(

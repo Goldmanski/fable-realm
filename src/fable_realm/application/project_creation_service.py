@@ -280,13 +280,13 @@ class ProjectCreationService:
             f"scenes/{scene.id}/illustration.png"
         )
 
-        saved_storage_keys.append(storage_key)
-
         self.image_storage.save(
             storage_key=storage_key,
             image_data=response.image_data,
             content_type=response.content_type,
         )
+
+        saved_storage_keys.append(storage_key)
 
         illustration = Illustration(
             id=str(uuid4()),
@@ -624,7 +624,7 @@ if __name__ == "__main__":
     print("World:", story.world.name)
 
     print("TEST 3 PASSED")
-    
+
     # --------------------------------------------------------
     # TEST 4: ILLUSTRATION GENERATION ROLLBACK
     # --------------------------------------------------------
