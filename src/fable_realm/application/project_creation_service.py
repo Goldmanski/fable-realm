@@ -710,6 +710,7 @@ if __name__ == "__main__":
         return ImageResponse(
             image_data=b"Test image data",
             content_type="image/png",
+            model=request.model,
         )
 
     image_provider.generate = generate_with_failure

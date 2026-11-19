@@ -236,7 +236,9 @@ class StoryAIService:
         6. Generate only the beginning of the story, not the entire plot.
         7. Include a prologue and several meaningful initial scenes.
         8. Keep the narrative coherent and internally consistent.
-        9. Dialogue speakers must correspond to defined characters.
+        9. Every dialogue speaker must be an exact name from the generated characters list.
+        Never use generic speaker names such as "Villager", "Guard" or "Stranger"
+        unless that character is explicitly defined in the characters list.
         10. Scene references must correspond to defined characters, locations and artifacts.
         11. Scene relationships must refer to relationships defined in the global relationships list.
         12. Include only relationships that are relevant to the events or interactions in a particular scene.
@@ -299,6 +301,9 @@ if __name__ == "__main__":
     from .ai_service import AIService
     from .story_service import StoryService
     from ..ai.provider_factory import AIProviderFactory
+    from ..infrastructure.ai_usage_repository import AIUsageRepository
+    from .ai_usage_service import AIUsageService
+    import streamlit as st
 
     # --------------------------------------------------------
     # CREATE SERVICES
@@ -309,10 +314,13 @@ if __name__ == "__main__":
     ai_service = AIService(
         provider_factory=factory,
         provider_name="openai",
-        api_key="API_KEY",
+        api_key=st.secrets["openai"]["api_key"],
     )
 
     story_service = StoryService()
+
+    repository = AIUsageRepository()
+    ai_usage_service = AIUsageService(repository)
 
     # --------------------------------------------------------
     # CREATE STORY AI SERVICE
@@ -321,6 +329,7 @@ if __name__ == "__main__":
     service = StoryAIService(
         ai_service=ai_service,
         story_service=story_service,
+        ai_usage_service=ai_usage_service,
     )
 
     # --------------------------------------------------------

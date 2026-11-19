@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     image_response = AIResponse(
         content="Test image",
-        model="gpt-image-1",
+        model="gpt-image-2.5-flare",
         usage={
             "input_tokens": 100,
             "output_tokens": 500,

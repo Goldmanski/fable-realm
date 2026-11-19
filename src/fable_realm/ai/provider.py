@@ -90,8 +90,8 @@ if __name__ == "__main__":
         content="A mysterious signal came from Mars.",
         model="gpt-4o",
         usage={
-            "prompt_tokens": 150,
-            "completion_tokens": 300,
+            "input_tokens": 150,
+            "output_tokens": 300,
             "total_tokens": 450,
         },
     )

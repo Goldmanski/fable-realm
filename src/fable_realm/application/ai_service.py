@@ -95,8 +95,8 @@ if __name__ == "__main__":
 
     if response.usage:
         print("\n--- AI USAGE ---")
-        print(response.usage["prompt_tokens"])
-        print(response.usage["completion_tokens"])
+        print(response.usage["input_tokens"])
+        print(response.usage["output_tokens"])
         print(response.usage["total_tokens"])
 
     # --------------------------------------------------------
