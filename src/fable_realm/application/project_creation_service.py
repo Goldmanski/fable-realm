@@ -350,6 +350,7 @@ class ProjectCreationService:
                         image_model=image_model,
                         saved_storage_keys=saved_storage_keys,
                         created_illustration_ids=created_illustration_ids,
+                        project_id=project_id,
                     )
 
         except Exception:
@@ -411,16 +412,9 @@ if __name__ == "__main__":
         api_key=st.secrets["openai"]["api_key"],
     )
 
-    from .ai_usage_service import AIUsageService
-    from ..infrastructure.ai_usage_repository import AIUsageRepository
-
-    repository = AIUsageRepository()
-    ai_usage_service = AIUsageService(repository)
-
     story_ai_service = StoryAIService(
         ai_service=ai_service,
         story_service=story_service,
-        ai_usage_service=ai_usage_service,
         ai_usage_service=ai_usage_service,
     )
 
@@ -730,6 +724,7 @@ if __name__ == "__main__":
             story=rollback_story,
             blueprint=blueprint,
             image_model="test-model",
+            project_id=30,
         )
 
     except RuntimeError as error:
@@ -772,7 +767,6 @@ if __name__ == "__main__":
     print("Story illustrations removed.")
     print("Original exception propagated.")
     print("TEST 4 PASSED")
-
 
     # --------------------------------------------------------
     # TEST SUMMARY
