@@ -38,12 +38,14 @@ class ProjectCreationService:
         story_initialization_service,
         image_provider,
         image_storage,
+        ai_usage_service,
     ):
         self.story_service = story_service
         self.story_ai_service = story_ai_service
         self.story_initialization_service = story_initialization_service
         self.image_provider = image_provider
         self.image_storage = image_storage
+        self.ai_usage_service = ai_usage_service
 
     # --------------------------------------------------------
     # PROJECT CREATION
@@ -126,7 +128,8 @@ class ProjectCreationService:
 
         initial_story_response = self.story_ai_service.generate_initial_story(
             blueprint=blueprint,
-            model=model
+            model=model,
+            project_id=project.id,
         )
 
         initial_story = initial_story_response.content
@@ -140,6 +143,7 @@ class ProjectCreationService:
             story=story,
             blueprint=blueprint,
             image_model="gpt-image-2.5-flare",
+            project_id=project.id,
         )
 
         project.attach_story(story.id)
@@ -264,6 +268,7 @@ class ProjectCreationService:
         image_model,
         saved_storage_keys,
         created_illustration_ids,
+        project_id,
     ):
 
         prompt = self._build_scene_prompt(
@@ -278,6 +283,12 @@ class ProjectCreationService:
         )
 
         response = self.image_provider.generate(request)
+
+        self.ai_usage_service.record_usage(
+            response=response,
+            operation="generate_scene_illustration",
+            project_id=project_id,
+        )
 
         storage_key = (
             f"stories/{story.id}/"
@@ -316,6 +327,7 @@ class ProjectCreationService:
         story,
         blueprint,
         image_model,
+        project_id,
     ):
 
         style_prompt = self._build_illustration_style_prompt(
@@ -376,6 +388,8 @@ if __name__ == "__main__":
     from .ai_service import AIService
     from ..ai.provider_factory import AIProviderFactory
     from .story_initialization_service import StoryInitializationService
+    from ..application.ai_usage_service import AIUsageService
+    from ..infrastructure.ai_usage_repository import AIUsageRepository
     import streamlit as st
 
     # --------------------------------------------------------
@@ -386,6 +400,9 @@ if __name__ == "__main__":
 
     story_service = StoryService()
 
+    repository = AIUsageRepository()
+    ai_usage_service = AIUsageService(repository)
+
     factory = AIProviderFactory()
 
     ai_service = AIService(
@@ -394,9 +411,17 @@ if __name__ == "__main__":
         api_key=st.secrets["openai"]["api_key"],
     )
 
+    from .ai_usage_service import AIUsageService
+    from ..infrastructure.ai_usage_repository import AIUsageRepository
+
+    repository = AIUsageRepository()
+    ai_usage_service = AIUsageService(repository)
+
     story_ai_service = StoryAIService(
         ai_service=ai_service,
         story_service=story_service,
+        ai_usage_service=ai_usage_service,
+        ai_usage_service=ai_usage_service,
     )
 
     from ..ai.openai_image_provider import OpenAIImageProvider
@@ -423,6 +448,7 @@ if __name__ == "__main__":
         story_initialization_service=story_initialization_service,
         image_provider=image_provider,
         image_storage=image_storage,
+        ai_usage_service=ai_usage_service,
     )
 
     # --------------------------------------------------------

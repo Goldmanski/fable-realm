@@ -18,9 +18,11 @@ class StoryAIService:
         self,
         ai_service,
         story_service,
+        ai_usage_service,
     ):
         self.ai_service = ai_service
         self.story_service = story_service
+        self.ai_usage_service = ai_usage_service  
 
     # --------------------------------------------------------
     # GENERATE TEXT
@@ -34,6 +36,8 @@ class StoryAIService:
         temperature=1.0,
         max_tokens=None,
         response_model=None,
+        operation=None,
+        project_id=None,
     ):
 
         if not user_message or not user_message.strip():
@@ -71,6 +75,13 @@ class StoryAIService:
             max_tokens=max_tokens,
             response_model=response_model,
         )
+
+        if operation is not None:
+            self.ai_usage_service.record_usage(
+                response=response,
+                operation=operation,
+                project_id=project_id,
+            )
 
         return response
 
@@ -117,6 +128,8 @@ class StoryAIService:
             model=model,
             temperature=0.8,
             max_tokens=500,
+            operation="generate_story_concept",
+            project_id=project.id,
         )
 
         return response
@@ -174,6 +187,8 @@ class StoryAIService:
             temperature=0.8,
             max_tokens=1500,
             response_model=StoryBlueprintSchema,
+            operation="generate_story_blueprint",
+            project_id=project.id,
         )
 
         blueprint = StoryBlueprint(
@@ -198,7 +213,7 @@ class StoryAIService:
     # GENERATE INITIAL STORY
     # --------------------------------------------------------
 
-    def generate_initial_story(self, blueprint, model):
+    def generate_initial_story(self, blueprint, model, project_id=None):
         """
         Generates the initial story content based on an approved StoryBlueprint.
         """
@@ -271,6 +286,8 @@ class StoryAIService:
             temperature=0.8,
             max_tokens=5000,
             response_model=InitialStorySchema,
+            operation="generate_initial_story",
+            project_id=project_id,
         )
 
 # ============================================================
