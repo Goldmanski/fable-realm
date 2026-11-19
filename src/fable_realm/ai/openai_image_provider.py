@@ -46,11 +46,34 @@ class OpenAIImageProvider(ImageProvider):
                 f"OpenAI image generation failed: {error}"
             ) from error
 
+        usage = {}
+
+        if response.usage is not None:
+            usage = {
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+                "total_tokens": response.usage.total_tokens,
+                "input_text_tokens": response.usage.input_tokens_details.text_tokens,
+                "input_image_tokens": response.usage.input_tokens_details.image_tokens,
+                "output_text_tokens": None,
+                "output_image_tokens": None,
+            }
+
+            if response.usage.output_tokens_details is not None:
+                usage["output_text_tokens"] = (
+                    response.usage.output_tokens_details.text_tokens
+                )
+                usage["output_image_tokens"] = (
+                    response.usage.output_tokens_details.image_tokens
+                )
+
         content_type = f"image/{request.output_format}"
 
         return ImageResponse(
             image_data=image_data,
             content_type=content_type,
+            model=request.model,
+            usage=usage,
         )
 
 # ============================================================
@@ -90,5 +113,11 @@ if __name__ == "__main__":
     print("Image data type:", type(response.image_data))
     print("Image size:", len(response.image_data), "bytes")
     print("Content type:", response.content_type)
+
+    assert response.model == request.model
+    assert isinstance(response.usage, dict)
+
+    print("Model:", response.model)
+    print("Usage:", response.usage)
 
     print("\nALL TESTS PASSED")

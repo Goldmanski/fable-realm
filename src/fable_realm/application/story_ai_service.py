@@ -322,7 +322,7 @@ if __name__ == "__main__":
     print(response.model)
 
     if response.usage is not None:
-        print(response.usage.total_tokens)
+        print(response.usage["total_tokens"])
 
     # --------------------------------------------------------
     # TEST GENERATE TEXT VALIDATION

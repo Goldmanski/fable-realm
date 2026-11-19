@@ -60,9 +60,13 @@ class OpenAIProvider(AIProvider):
 
         if response.usage is not None:
             usage = {
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
                 "total_tokens": response.usage.total_tokens,
+                "input_text_tokens": None,
+                "input_image_tokens": None,
+                "output_text_tokens": None,
+                "output_image_tokens": None,
             }
 
         return AIResponse(
@@ -147,3 +151,11 @@ if __name__ == "__main__":
     print(structured_response.content.genre)
     print(structured_response.content.main_characters)
     print(structured_response.usage)
+    
+    assert "input_tokens" in response.usage
+    assert "output_tokens" in response.usage
+    assert "total_tokens" in response.usage
+
+    print("Input tokens:", response.usage["input_tokens"])
+    print("Output tokens:", response.usage["output_tokens"])
+    print("Total tokens:", response.usage["total_tokens"])

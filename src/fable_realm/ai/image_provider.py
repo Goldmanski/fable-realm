@@ -1,3 +1,4 @@
+
 # ============================================================
 # IMAGE REQUEST
 # ============================================================
@@ -18,7 +19,6 @@ class ImageRequest:
         self.quality = quality
         self.output_format = output_format
 
-
 # ============================================================
 # IMAGE RESPONSE
 # ============================================================
@@ -29,10 +29,13 @@ class ImageResponse:
         self,
         image_data,
         content_type,
+        model,
+        usage=None,
     ):
         self.image_data = image_data
         self.content_type = content_type
-
+        self.model = model
+        self.usage = usage if usage is not None else {}
 
 # ============================================================
 # IMAGE PROVIDER ERROR
@@ -40,7 +43,6 @@ class ImageResponse:
 
 class ImageProviderError(Exception):
     pass
-
 
 # ============================================================
 # IMAGE PROVIDER
@@ -56,7 +58,6 @@ class ImageProvider:
         raise NotImplementedError(
             "ImageProvider.generate() must be implemented"
         )
-
 
 # ============================================================
 # MANUAL TESTS
@@ -116,11 +117,24 @@ if __name__ == "__main__":
     # TEST 3: IMAGE RESPONSE
     # --------------------------------------------------------
 
+    
+    # --------------------------------------------------------
+    # TEST 3: IMAGE RESPONSE
+    # --------------------------------------------------------
+
     image_data = b"Example PNG image data"
+
+    usage = {
+        "input_tokens": 100,
+        "output_tokens": 0,
+        "total_tokens": 100,
+    }
 
     response = ImageResponse(
         image_data=image_data,
         content_type="image/png",
+        model="gpt-image-1",
+        usage=usage,
     )
 
     print("\n--- TEST 3: IMAGE RESPONSE ---")
@@ -129,9 +143,13 @@ if __name__ == "__main__":
     assert response.image_data == image_data
     assert isinstance(response.image_data, bytes)
     assert response.content_type == "image/png"
+    assert response.model == "gpt-image-1"
+    assert response.usage == usage
 
     print("Image data:", response.image_data)
     print("Content type:", response.content_type)
+    print("Model:", response.model)
+    print("Usage:", response.usage)
     print("Image size:", len(response.image_data), "bytes")
     print("TEST 3 PASSED")
 
@@ -164,3 +182,4 @@ if __name__ == "__main__":
         print("Expected error:", error)
 
     print("\nALL TESTS PASSED")
+    
