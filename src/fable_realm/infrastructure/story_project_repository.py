@@ -54,8 +54,9 @@ class StoryProjectRepository:
                         DO UPDATE SET
                             title = EXCLUDED.title,
                             status = EXCLUDED.status,
-                            story_id = EXCLUDED.story_id,
-                            user_id = EXCLUDED.user_id
+                            story_id = EXCLUDED.story_id
+                        WHERE story_projects.user_id = EXCLUDED.user_id
+                        RETURNING id
                         """,
                         (
                             str(project.id),
@@ -69,6 +70,9 @@ class StoryProjectRepository:
                             user_id,
                         ),
                     )
+
+                    if cursor.fetchone() is None:
+                        raise ValueError("Project does not belong to this user")
 
             return project
 
