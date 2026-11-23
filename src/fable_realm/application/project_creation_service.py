@@ -8,6 +8,8 @@ from uuid import uuid4
 
 from ..ai.image_provider import ImageRequest
 from ..domain.illustration import Illustration
+from ..infrastructure.story_repository import StoryRepository
+from ..infrastructure.story_project_repository import StoryProjectRepository
 
 
 # ============================================================
@@ -39,6 +41,8 @@ class ProjectCreationService:
         image_provider,
         image_storage,
         ai_usage_service,
+        story_repository,
+        story_project_repository,
     ):
         self.story_service = story_service
         self.story_ai_service = story_ai_service
@@ -46,12 +50,14 @@ class ProjectCreationService:
         self.image_provider = image_provider
         self.image_storage = image_storage
         self.ai_usage_service = ai_usage_service
-
+        self.story_repository = story_repository
+        self.story_project_repository = story_project_repository
+    
     # --------------------------------------------------------
     # PROJECT CREATION
     # --------------------------------------------------------
 
-    def create_empty_project(self, project_id, story_id, world_id, title):
+    def create_empty_project(self, project_id, story_id, world_id, title, user_id,):
 
         project = self.story_service.create_project(
             id=project_id,
@@ -72,6 +78,9 @@ class ProjectCreationService:
 
         project.attach_story(story.id)
 
+        self.story_repository.save(story)
+        self.story_project_repository.save(project, user_id)
+
         return project, story
 
     # --------------------------------------------------------
@@ -83,7 +92,8 @@ class ProjectCreationService:
         project_id,
         project_title,
         user_idea,
-        model
+        model,
+        user_id,
     ):
 
         project = self.story_service.create_project(
@@ -99,6 +109,8 @@ class ProjectCreationService:
 
         blueprint = blueprint_response.content
 
+        self.story_project_repository.save(project, user_id)
+
         return project, blueprint
 
     # --------------------------------------------------------
@@ -111,7 +123,8 @@ class ProjectCreationService:
         blueprint,
         story_id,
         world_id,
-        model
+        model,
+        user_id,
     ):
 
         story = self.story_service.create_story(
@@ -147,6 +160,9 @@ class ProjectCreationService:
         )
 
         project.attach_story(story.id)
+
+        self.story_repository.save(story)
+        self.story_project_repository.save(project, user_id)
 
         return project, story
 
@@ -391,6 +407,8 @@ if __name__ == "__main__":
     from .story_initialization_service import StoryInitializationService
     from ..application.ai_usage_service import AIUsageService
     from ..infrastructure.ai_usage_repository import AIUsageRepository
+    from ..infrastructure.story_repository import StoryRepository
+    from ..infrastructure.story_project_repository import StoryProjectRepository
     import streamlit as st
 
     # --------------------------------------------------------
@@ -436,6 +454,11 @@ if __name__ == "__main__":
     # CREATE PROJECT CREATION SERVICE
     # --------------------------------------------------------
 
+    story_repository = StoryRepository()
+    story_project_repository = StoryProjectRepository()
+
+    user_id = "manual_test_user"
+
     service = ProjectCreationService(
         story_service=story_service,
         story_ai_service=story_ai_service,
@@ -443,6 +466,8 @@ if __name__ == "__main__":
         image_provider=image_provider,
         image_storage=image_storage,
         ai_usage_service=ai_usage_service,
+        story_repository=story_repository,
+        story_project_repository=story_project_repository,
     )
 
     # --------------------------------------------------------
@@ -456,6 +481,7 @@ if __name__ == "__main__":
         story_id=10,
         world_id=11,
         title="The Last Signal",
+        user_id=user_id,
     )
 
     # Verify project.
@@ -478,6 +504,20 @@ if __name__ == "__main__":
     assert story.world.name == "Story World"
     assert story.world.description == ""
 
+    saved_project = story_project_repository.get_by_id(1)
+    saved_story = story_repository.get_by_id(10)
+
+    assert saved_project is not None
+    assert saved_story is not None
+
+    assert saved_project.title == "The Last Signal"
+    assert saved_project.story_id == 10
+
+    assert saved_story.title == "The Last Signal"
+    assert saved_story.world.id == 11
+
+    print("Project and Story persistence verified.")
+
     print("Project ID:", project.id)
     print("Story ID:", story.id)
     print("World ID:", story.world.id)
@@ -498,6 +538,7 @@ if __name__ == "__main__":
             "that could help him reclaim his kingdom."
         ),
         model="gpt-4o",
+        user_id=user_id,
     )
 
     # Verify project.
@@ -517,6 +558,14 @@ if __name__ == "__main__":
     assert blueprint.main_conflict
     assert blueprint.plot_outline
     assert blueprint.story_direction
+
+    saved_project = story_project_repository.get_by_id(2)
+
+    assert saved_project is not None
+    assert saved_project.title == "The Forgotten Kingdom"
+    assert saved_project.story_id is None
+
+    print("Blueprint project persistence verified.")
 
     print("Project ID:", project.id)
     print("Project title:", project.title)
@@ -547,6 +596,7 @@ if __name__ == "__main__":
         story_id=20,
         world_id=21,
         model="gpt-4o",
+        user_id=user_id,
     )
 
     # Verify project and story relationship.
@@ -573,6 +623,21 @@ if __name__ == "__main__":
     # Verify initial story initialization.
     assert story.chapters
     assert story.characters
+
+    saved_project = story_project_repository.get_by_id(2)
+    saved_story = story_repository.get_by_id(20)
+
+    assert saved_project is not None
+    assert saved_story is not None
+
+    assert saved_project.story_id == 20
+    assert saved_story.title == blueprint.title
+
+    assert saved_story.chapters
+    assert saved_story.characters
+    assert saved_story.illustrations
+
+    print("Completed project persistence verified.")
 
     # --------------------------------------------------------
     # VERIFY: GENERATED ILLUSTRATIONS
