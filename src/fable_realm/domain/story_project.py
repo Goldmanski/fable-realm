@@ -5,6 +5,12 @@
 
 class StoryProject:
 
+    ALLOWED_STATUSES = [
+        "Draft",
+        "In Progress",
+        "Completed",
+    ]
+
     # --------------------------------------------------------
     # INITIALIZATION
     # --------------------------------------------------------
@@ -16,6 +22,9 @@ class StoryProject:
         status="Draft",
         story_id=None,
     ):
+        if status not in self.ALLOWED_STATUSES:
+            raise ValueError(f"Invalid project status: {status}")
+
         self.id = id
         self.title = title
         self.status = status
@@ -30,13 +39,7 @@ class StoryProject:
 
     def change_status(self, status):
 
-        allowed_statuses = [
-            "Draft",
-            "In Progress",
-            "Completed",
-        ]
-
-        if status not in allowed_statuses:
+        if status not in self.ALLOWED_STATUSES:
             raise ValueError(f"Invalid project status: {status}")
 
         self.status = status
@@ -100,4 +103,33 @@ if __name__ == "__main__":
 
     print("All valid statuses accepted.")
     print("Invalid status rejected.")
+    print("TEST PASSED")
+
+    # --------------------------------------------------------
+    # TEST CONSTRUCTOR STATUS VALIDATION
+    # --------------------------------------------------------
+
+    print("\n--- TEST CONSTRUCTOR STATUS VALIDATION ---")
+
+    valid_project = StoryProject(
+        id=2,
+        title="Valid Project",
+        status="Completed",
+    )
+
+    assert valid_project.status == "Completed"
+
+    try:
+        StoryProject(
+            id=3,
+            title="Invalid Project",
+            status="Archived",
+        )
+
+    except ValueError:
+        print("Invalid constructor status correctly rejected.")
+
+    else:
+        raise AssertionError("Invalid constructor status was accepted.")
+
     print("TEST PASSED")
