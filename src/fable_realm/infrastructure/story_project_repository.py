@@ -32,52 +32,61 @@ class StoryProjectRepository:
     # SAVE
     # --------------------------------------------------------
 
-    def save(self, project, user_id):
+    def save(self, project, user_id, connection=None):
 
-        connection = get_connection()
+        if connection is None:
 
-        try:
-            with connection:
-                with connection.cursor() as cursor:
+            connection = get_connection()
 
-                    cursor.execute(
-                        """
-                        INSERT INTO story_projects (
-                            id,
-                            title,
-                            status,
-                            story_id,
-                            user_id
-                        )
-                        VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (id)
-                        DO UPDATE SET
-                            title = EXCLUDED.title,
-                            status = EXCLUDED.status,
-                            story_id = EXCLUDED.story_id
-                        WHERE story_projects.user_id = EXCLUDED.user_id
-                        RETURNING id
-                        """,
-                        (
-                            str(project.id),
-                            project.title,
-                            project.status,
-                            (
-                                str(project.story_id)
-                                if project.story_id is not None
-                                else None
-                            ),
-                            user_id,
-                        ),
-                    )
+            try:
+                with connection:
+                    self._save_project(project, user_id, connection)
 
-                    if cursor.fetchone() is None:
-                        raise ValueError("Project does not belong to this user")
+            finally:
+                connection.close()
 
-            return project
+        else:
+            self._save_project(project, user_id, connection)
 
-        finally:
-            connection.close()
+        return project
+
+    def _save_project(self, project, user_id, connection):
+
+        with connection.cursor() as cursor:
+
+            cursor.execute(
+                """
+                INSERT INTO story_projects (
+                    id,
+                    title,
+                    status,
+                    story_id,
+                    user_id
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (id)
+                DO UPDATE SET
+                    title = EXCLUDED.title,
+                    status = EXCLUDED.status,
+                    story_id = EXCLUDED.story_id
+                WHERE story_projects.user_id = EXCLUDED.user_id
+                RETURNING id
+                """,
+                (
+                    str(project.id),
+                    project.title,
+                    project.status,
+                    (
+                        str(project.story_id)
+                        if project.story_id is not None
+                        else None
+                    ),
+                    user_id,
+                ),
+            )
+
+            if cursor.fetchone() is None:
+                raise ValueError("Project does not belong to this user")
 
     # --------------------------------------------------------
     # GET BY ID
@@ -98,6 +107,44 @@ class StoryProjectRepository:
                         WHERE id = %s
                         """,
                         (str(project_id),),
+                    )
+
+                    row = cursor.fetchone()
+
+                    if row is None:
+                        return None
+
+                    project = StoryProject(
+                        id=self._restore_id(row[0]),
+                        title=row[1],
+                        status=row[2],
+                        story_id=self._restore_id(row[3]),
+                    )
+
+                    return project
+
+        finally:
+            connection.close()
+
+    # --------------------------------------------------------
+    # GET BY ID FOR USER
+    # --------------------------------------------------------
+
+    def get_by_id_for_user(self, project_id, user_id):
+
+        connection = get_connection()
+
+        try:
+            with connection:
+                with connection.cursor() as cursor:
+
+                    cursor.execute(
+                        """
+                        SELECT id, title, status, story_id
+                        FROM story_projects
+                        WHERE id = %s AND user_id = %s
+                        """,
+                        (str(project_id), user_id),
                     )
 
                     row = cursor.fetchone()
@@ -221,6 +268,66 @@ if __name__ == "__main__":
     )
 
     print("Project saved:", saved_project.title)
+
+    # --------------------------------------------------------
+    # GET PROJECT BY ID FOR USER
+    # --------------------------------------------------------
+
+    print("\n--- GET PROJECT BY ID FOR USER ---")
+
+    loaded_project = repository.get_by_id_for_user(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    if loaded_project is None:
+        raise Exception("Get by ID for user test failed.")
+
+    if loaded_project.id != project.id:
+        raise Exception("Project ID test failed.")
+
+    if loaded_project.title != project.title:
+        raise Exception("Project title test failed.")
+
+    if loaded_project.status != "Draft":
+        raise Exception("Project status test failed.")
+
+    if loaded_project.story_id is not None:
+        raise Exception("Project story ID should be None.")
+
+    print("Own project successfully retrieved.")
+
+    # --------------------------------------------------------
+    # GET PROJECT BELONGING TO ANOTHER USER
+    # --------------------------------------------------------
+
+    print("\n--- GET PROJECT BELONGING TO ANOTHER USER ---")
+
+    foreign_project = repository.get_by_id_for_user(
+        project_id=project.id,
+        user_id="another_test_user",
+    )
+
+    if foreign_project is not None:
+        raise Exception("Foreign project access test failed.")
+
+    print("Foreign project access correctly denied.")
+
+    # --------------------------------------------------------
+    # GET NONEXISTENT PROJECT FOR USER
+    # --------------------------------------------------------
+
+    print("\n--- GET NONEXISTENT PROJECT FOR USER ---")
+
+    missing_project = repository.get_by_id_for_user(
+        project_id=999999,
+        user_id=user_id,
+    )
+
+    if missing_project is not None:
+        raise Exception("Nonexistent project test failed.")
+
+    print("Nonexistent project correctly returned None.")
 
     # --------------------------------------------------------
     # GET PROJECT BY ID

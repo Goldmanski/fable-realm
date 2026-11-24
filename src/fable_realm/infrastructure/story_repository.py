@@ -41,429 +41,438 @@ class StoryRepository:
     # SAVE
     # --------------------------------------------------------
 
-    def save(self, story):
+    def save(self, story, connection=None):
 
-        connection = get_connection()
+        if connection is None:
 
-        try:
-            with connection:
-                with connection.cursor() as cursor:
+            connection = get_connection()
 
-                    # ------------------------------------------------
-                    # SAVE STORY
-                    # ------------------------------------------------
+            try:
+                with connection:
+                    self._save_story(story, connection)
+
+            finally:
+                connection.close()
+
+        else:
+            self._save_story(story, connection)
+
+        return story
+
+    def _save_story(self, story, connection):
+
+        with connection.cursor() as cursor:
+
+    # ------------------------------------------------
+    # SAVE STORY
+    # ------------------------------------------------
+
+            cursor.execute(
+                """
+                INSERT INTO stories (
+                    id,
+                    title,
+                    genre,
+                    tone,
+                    length,
+                    creativity
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id)
+                DO UPDATE SET
+                    title = EXCLUDED.title,
+                    genre = EXCLUDED.genre,
+                    tone = EXCLUDED.tone,
+                    length = EXCLUDED.length,
+                    creativity = EXCLUDED.creativity
+                """,
+                (
+                    str(story.id),
+                    story.title,
+                    story.settings.genre,
+                    story.settings.tone,
+                    story.settings.length,
+                    story.settings.creativity,
+                ),
+            )
+
+            # ------------------------------------------------
+            # DELETE EXISTING ELEMENTS
+            # ------------------------------------------------
+
+            cursor.execute(
+                "DELETE FROM chapters WHERE story_id = %s",
+                (str(story.id),),
+            )
+
+            cursor.execute(
+                "DELETE FROM relationships WHERE story_id = %s",
+                (str(story.id),),
+            )
+
+            cursor.execute(
+                "DELETE FROM illustrations WHERE story_id = %s",
+                (str(story.id),),
+            )
+
+            cursor.execute(
+                "DELETE FROM characters WHERE story_id = %s",
+                (str(story.id),),
+            )
+
+            cursor.execute(
+                "DELETE FROM locations WHERE story_id = %s",
+                (str(story.id),),
+            )
+
+            cursor.execute(
+                "DELETE FROM artifacts WHERE story_id = %s",
+                (str(story.id),),
+            )
+
+            cursor.execute(
+                "DELETE FROM worlds WHERE story_id = %s",
+                (str(story.id),),
+            )
+
+            # ------------------------------------------------
+            # SAVE WORLD
+            # ------------------------------------------------
+
+            if story.world is not None:
+
+                cursor.execute(
+                    """
+                    INSERT INTO worlds (
+                        id,
+                        story_id,
+                        name,
+                        description,
+                        source_library_item_id
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(story.world.id),
+                        str(story.id),
+                        story.world.name,
+                        story.world.description,
+                        (
+                            str(story.world.source_library_item_id)
+                            if story.world.source_library_item_id is not None
+                            else None
+                        ),
+                    ),
+                )
+
+            # ------------------------------------------------
+            # SAVE CHARACTERS
+            # ------------------------------------------------
+
+            for character in story.characters:
+
+                cursor.execute(
+                    """
+                    INSERT INTO characters (
+                        id,
+                        story_id,
+                        name,
+                        description,
+                        role,
+                        source_library_item_id
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(character.id),
+                        str(story.id),
+                        character.name,
+                        character.description,
+                        character.role,
+                        (
+                            str(character.source_library_item_id)
+                            if character.source_library_item_id is not None
+                            else None
+                        ),
+                    ),
+                )
+
+            # ------------------------------------------------
+            # SAVE LOCATIONS
+            # ------------------------------------------------
+
+            for location in story.locations:
+
+                cursor.execute(
+                    """
+                    INSERT INTO locations (
+                        id,
+                        story_id,
+                        name,
+                        description,
+                        source_library_item_id
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(location.id),
+                        str(story.id),
+                        location.name,
+                        location.description,
+                        (
+                            str(location.source_library_item_id)
+                            if location.source_library_item_id is not None
+                            else None
+                        ),
+                    ),
+                )
+
+            # ------------------------------------------------
+            # SAVE ARTIFACTS
+            # ------------------------------------------------
+
+            for artifact in story.artifacts:
+
+                cursor.execute(
+                    """
+                    INSERT INTO artifacts (
+                        id,
+                        story_id,
+                        name,
+                        description,
+                        source_library_item_id
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(artifact.id),
+                        str(story.id),
+                        artifact.name,
+                        artifact.description,
+                        (
+                            str(artifact.source_library_item_id)
+                            if artifact.source_library_item_id is not None
+                            else None
+                        ),
+                    ),
+                )
+
+            # ------------------------------------------------
+            # SAVE ILLUSTRATIONS
+            # ------------------------------------------------
+
+            for illustration in story.illustrations:
+
+                cursor.execute(
+                    """
+                    INSERT INTO illustrations (
+                        id,
+                        story_id,
+                        storage_key,
+                        content_type,
+                        prompt,
+                        created_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(illustration.id),
+                        str(story.id),
+                        illustration.storage_key,
+                        illustration.content_type,
+                        illustration.prompt,
+                        illustration.created_at,
+                    ),
+                )
+
+            # ------------------------------------------------
+            # SAVE CHAPTERS
+            # ------------------------------------------------
+
+            for chapter_position, chapter in enumerate(
+                story.chapters,
+                start=1,
+            ):
+
+                cursor.execute(
+                    """
+                    INSERT INTO chapters (
+                        id,
+                        story_id,
+                        number,
+                        title,
+                        position
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(chapter.id),
+                        str(story.id),
+                        chapter.number,
+                        chapter.title,
+                        chapter_position,
+                    ),
+                )
+
+                # ------------------------------------------------
+                # SAVE RELATIONSHIPS
+                # ------------------------------------------------
+
+            for relationship in story.relationships:
+
+                cursor.execute(
+                    """
+                    INSERT INTO relationships (
+                        id,
+                        story_id,
+                        character_id,
+                        related_character_id,
+                        relationship_type,
+                        description
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(relationship.id),
+                        str(story.id),
+                        str(relationship.character_id),
+                        str(relationship.related_character_id),
+                        relationship.relationship_type,
+                        relationship.description,
+                    ),
+                )
+
+            # ------------------------------------------------
+            # SAVE SCENES
+            # ------------------------------------------------
+
+            for chapter in story.chapters:
+
+                for scene_position, scene in enumerate(
+                    chapter.scenes,
+                    start=1,
+                ):
 
                     cursor.execute(
                         """
-                        INSERT INTO stories (
+                        INSERT INTO scenes (
                             id,
+                            chapter_id,
                             title,
-                            genre,
-                            tone,
-                            length,
-                            creativity
+                            content,
+                            position,
+                            location_id,
+                            illustration_id
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (id)
-                        DO UPDATE SET
-                            title = EXCLUDED.title,
-                            genre = EXCLUDED.genre,
-                            tone = EXCLUDED.tone,
-                            length = EXCLUDED.length,
-                            creativity = EXCLUDED.creativity
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """,
                         (
-                            str(story.id),
-                            story.title,
-                            story.settings.genre,
-                            story.settings.tone,
-                            story.settings.length,
-                            story.settings.creativity,
+                            str(scene.id),
+                            str(chapter.id),
+                            scene.title,
+                            scene.content,
+                            scene_position,
+                            (
+                                str(scene.location_id)
+                                if scene.location_id is not None
+                                else None
+                            ),
+                            (
+                                str(scene.illustration_id)
+                                if scene.illustration_id is not None
+                                else None
+                            ),
                         ),
                     )
 
-                    # ------------------------------------------------
-                    # DELETE EXISTING ELEMENTS
-                    # ------------------------------------------------
+                    # --------------------------------------------
+                    # SAVE DIALOGUE LINES
+                    # --------------------------------------------
 
-                    cursor.execute(
-                        "DELETE FROM chapters WHERE story_id = %s",
-                        (str(story.id),),
-                    )
-
-                    cursor.execute(
-                        "DELETE FROM relationships WHERE story_id = %s",
-                        (str(story.id),),
-                    )
-
-                    cursor.execute(
-                        "DELETE FROM illustrations WHERE story_id = %s",
-                        (str(story.id),),
-                    )
-
-                    cursor.execute(
-                        "DELETE FROM characters WHERE story_id = %s",
-                        (str(story.id),),
-                    )
-
-                    cursor.execute(
-                        "DELETE FROM locations WHERE story_id = %s",
-                        (str(story.id),),
-                    )
-
-                    cursor.execute(
-                        "DELETE FROM artifacts WHERE story_id = %s",
-                        (str(story.id),),
-                    )
-
-                    cursor.execute(
-                        "DELETE FROM worlds WHERE story_id = %s",
-                        (str(story.id),),
-                    )
-
-                    # ------------------------------------------------
-                    # SAVE WORLD
-                    # ------------------------------------------------
-
-                    if story.world is not None:
-
-                        cursor.execute(
-                            """
-                            INSERT INTO worlds (
-                                id,
-                                story_id,
-                                name,
-                                description,
-                                source_library_item_id
-                            )
-                            VALUES (%s, %s, %s, %s, %s)
-                            """,
-                            (
-                                str(story.world.id),
-                                str(story.id),
-                                story.world.name,
-                                story.world.description,
-                                (
-                                    str(story.world.source_library_item_id)
-                                    if story.world.source_library_item_id is not None
-                                    else None
-                                ),
-                            ),
-                        )
-
-                    # ------------------------------------------------
-                    # SAVE CHARACTERS
-                    # ------------------------------------------------
-
-                    for character in story.characters:
-
-                        cursor.execute(
-                            """
-                            INSERT INTO characters (
-                                id,
-                                story_id,
-                                name,
-                                description,
-                                role,
-                                source_library_item_id
-                            )
-                            VALUES (%s, %s, %s, %s, %s, %s)
-                            """,
-                            (
-                                str(character.id),
-                                str(story.id),
-                                character.name,
-                                character.description,
-                                character.role,
-                                (
-                                    str(character.source_library_item_id)
-                                    if character.source_library_item_id is not None
-                                    else None
-                                ),
-                            ),
-                        )
-
-                    # ------------------------------------------------
-                    # SAVE LOCATIONS
-                    # ------------------------------------------------
-
-                    for location in story.locations:
-
-                        cursor.execute(
-                            """
-                            INSERT INTO locations (
-                                id,
-                                story_id,
-                                name,
-                                description,
-                                source_library_item_id
-                            )
-                            VALUES (%s, %s, %s, %s, %s)
-                            """,
-                            (
-                                str(location.id),
-                                str(story.id),
-                                location.name,
-                                location.description,
-                                (
-                                    str(location.source_library_item_id)
-                                    if location.source_library_item_id is not None
-                                    else None
-                                ),
-                            ),
-                        )
-
-                    # ------------------------------------------------
-                    # SAVE ARTIFACTS
-                    # ------------------------------------------------
-
-                    for artifact in story.artifacts:
-
-                        cursor.execute(
-                            """
-                            INSERT INTO artifacts (
-                                id,
-                                story_id,
-                                name,
-                                description,
-                                source_library_item_id
-                            )
-                            VALUES (%s, %s, %s, %s, %s)
-                            """,
-                            (
-                                str(artifact.id),
-                                str(story.id),
-                                artifact.name,
-                                artifact.description,
-                                (
-                                    str(artifact.source_library_item_id)
-                                    if artifact.source_library_item_id is not None
-                                    else None
-                                ),
-                            ),
-                        )
-
-                    # ------------------------------------------------
-                    # SAVE ILLUSTRATIONS
-                    # ------------------------------------------------
-
-                    for illustration in story.illustrations:
-
-                        cursor.execute(
-                            """
-                            INSERT INTO illustrations (
-                                id,
-                                story_id,
-                                storage_key,
-                                content_type,
-                                prompt,
-                                created_at
-                            )
-                            VALUES (%s, %s, %s, %s, %s, %s)
-                            """,
-                            (
-                                str(illustration.id),
-                                str(story.id),
-                                illustration.storage_key,
-                                illustration.content_type,
-                                illustration.prompt,
-                                illustration.created_at,
-                            ),
-                        )
-
-                    # ------------------------------------------------
-                    # SAVE CHAPTERS
-                    # ------------------------------------------------
-
-                    for chapter_position, chapter in enumerate(
-                        story.chapters,
+                    for dialogue_position, line in enumerate(
+                        scene.dialogue,
                         start=1,
                     ):
 
                         cursor.execute(
                             """
-                            INSERT INTO chapters (
+                            INSERT INTO dialogue_lines (
                                 id,
-                                story_id,
-                                number,
-                                title,
+                                scene_id,
+                                speaker_character_id,
+                                text,
                                 position
                             )
                             VALUES (%s, %s, %s, %s, %s)
                             """,
                             (
-                                str(chapter.id),
-                                str(story.id),
-                                chapter.number,
-                                chapter.title,
-                                chapter_position,
+                                str(line.id),
+                                str(scene.id),
+                                str(line.speaker_character_id),
+                                line.text,
+                                dialogue_position,
                             ),
                         )
 
-                        # ------------------------------------------------
-                        # SAVE RELATIONSHIPS
-                        # ------------------------------------------------
+                    # --------------------------------------------
+                    # SAVE SCENE CHARACTERS
+                    # --------------------------------------------
 
-                    for relationship in story.relationships:
+                    for character_id in scene.character_ids:
 
                         cursor.execute(
                             """
-                            INSERT INTO relationships (
-                                id,
-                                story_id,
-                                character_id,
-                                related_character_id,
-                                relationship_type,
-                                description
+                            INSERT INTO scene_characters (
+                                scene_id,
+                                character_id
                             )
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            VALUES (%s, %s)
                             """,
                             (
-                                str(relationship.id),
-                                str(story.id),
-                                str(relationship.character_id),
-                                str(relationship.related_character_id),
-                                relationship.relationship_type,
-                                relationship.description,
+                                str(scene.id),
+                                str(character_id),
                             ),
                         )
 
-                    # ------------------------------------------------
-                    # SAVE SCENES
-                    # ------------------------------------------------
+                    # --------------------------------------------
+                    # SAVE SCENE ARTIFACTS
+                    # --------------------------------------------
 
-                    for chapter in story.chapters:
+                    for artifact_id in scene.artifact_ids:
 
-                        for scene_position, scene in enumerate(
-                            chapter.scenes,
-                            start=1,
-                        ):
-
-                            cursor.execute(
-                                """
-                                INSERT INTO scenes (
-                                    id,
-                                    chapter_id,
-                                    title,
-                                    content,
-                                    position,
-                                    location_id,
-                                    illustration_id
-                                )
-                                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                                """,
-                                (
-                                    str(scene.id),
-                                    str(chapter.id),
-                                    scene.title,
-                                    scene.content,
-                                    scene_position,
-                                    (
-                                        str(scene.location_id)
-                                        if scene.location_id is not None
-                                        else None
-                                    ),
-                                    (
-                                        str(scene.illustration_id)
-                                        if scene.illustration_id is not None
-                                        else None
-                                    ),
-                                ),
+                        cursor.execute(
+                            """
+                            INSERT INTO scene_artifacts (
+                                scene_id,
+                                artifact_id
                             )
+                            VALUES (%s, %s)
+                            """,
+                            (
+                                str(scene.id),
+                                str(artifact_id),
+                            ),
+                        )
 
-                            # --------------------------------------------
-                            # SAVE DIALOGUE LINES
-                            # --------------------------------------------
+                    # --------------------------------------------
+                    # SAVE SCENE RELATIONSHIPS
+                    # --------------------------------------------
 
-                            for dialogue_position, line in enumerate(
-                                scene.dialogue,
-                                start=1,
-                            ):
+                    for relationship_id in scene.relationship_ids:
 
-                                cursor.execute(
-                                    """
-                                    INSERT INTO dialogue_lines (
-                                        id,
-                                        scene_id,
-                                        speaker_character_id,
-                                        text,
-                                        position
-                                    )
-                                    VALUES (%s, %s, %s, %s, %s)
-                                    """,
-                                    (
-                                        str(line.id),
-                                        str(scene.id),
-                                        str(line.speaker_character_id),
-                                        line.text,
-                                        dialogue_position,
-                                    ),
-                                )
-
-                            # --------------------------------------------
-                            # SAVE SCENE CHARACTERS
-                            # --------------------------------------------
-
-                            for character_id in scene.character_ids:
-
-                                cursor.execute(
-                                    """
-                                    INSERT INTO scene_characters (
-                                        scene_id,
-                                        character_id
-                                    )
-                                    VALUES (%s, %s)
-                                    """,
-                                    (
-                                        str(scene.id),
-                                        str(character_id),
-                                    ),
-                                )
-
-                            # --------------------------------------------
-                            # SAVE SCENE ARTIFACTS
-                            # --------------------------------------------
-
-                            for artifact_id in scene.artifact_ids:
-
-                                cursor.execute(
-                                    """
-                                    INSERT INTO scene_artifacts (
-                                        scene_id,
-                                        artifact_id
-                                    )
-                                    VALUES (%s, %s)
-                                    """,
-                                    (
-                                        str(scene.id),
-                                        str(artifact_id),
-                                    ),
-                                )
-
-                            # --------------------------------------------
-                            # SAVE SCENE RELATIONSHIPS
-                            # --------------------------------------------
-
-                            for relationship_id in scene.relationship_ids:
-
-                                cursor.execute(
-                                    """
-                                    INSERT INTO scene_relationships (
-                                        scene_id,
-                                        relationship_id
-                                    )
-                                    VALUES (%s, %s)
-                                    """,
-                                    (
-                                        str(scene.id),
-                                        str(relationship_id),
-                                    ),
-                                )
-
-            return story
-
-        finally:
-            connection.close()
+                        cursor.execute(
+                            """
+                            INSERT INTO scene_relationships (
+                                scene_id,
+                                relationship_id
+                            )
+                            VALUES (%s, %s)
+                            """,
+                            (
+                                str(scene.id),
+                                str(relationship_id),
+                            ),
+                        )
 
     # --------------------------------------------------------
     # GET BY ID

@@ -10,6 +10,7 @@ from ..ai.image_provider import ImageRequest
 from ..domain.illustration import Illustration
 from ..infrastructure.story_repository import StoryRepository
 from ..infrastructure.story_project_repository import StoryProjectRepository
+from ..infrastructure.database_connection import get_connection
 
 
 # ============================================================
@@ -78,8 +79,19 @@ class ProjectCreationService:
 
         project.attach_story(story.id)
 
-        self.story_repository.save(story)
-        self.story_project_repository.save(project, user_id)
+        connection = get_connection()
+
+        try:
+            with connection:
+                self.story_repository.save(story, connection)
+                self.story_project_repository.save(
+                    project,
+                    user_id,
+                    connection,
+                )
+
+        finally:
+            connection.close()
 
         return project, story
 
@@ -127,6 +139,18 @@ class ProjectCreationService:
         user_id,
     ):
 
+        saved_project = self.story_project_repository.get_by_id_for_user(
+            project_id=project.id,
+            user_id=user_id,
+        )
+
+        if saved_project is None:
+            raise ValueError(
+                "Project not found or does not belong to this user"
+            )
+
+        project = saved_project
+
         story = self.story_service.create_story(
             id=story_id,
             world_id=world_id,
@@ -161,8 +185,19 @@ class ProjectCreationService:
 
         project.attach_story(story.id)
 
-        self.story_repository.save(story)
-        self.story_project_repository.save(project, user_id)
+        connection = get_connection()
+
+        try:
+            with connection:
+                self.story_repository.save(story, connection)
+                self.story_project_repository.save(
+                    project,
+                    user_id,
+                    connection,
+                )
+
+        finally:
+            connection.close()
 
         return project, story
 
@@ -409,6 +444,7 @@ if __name__ == "__main__":
     from ..infrastructure.ai_usage_repository import AIUsageRepository
     from ..infrastructure.story_repository import StoryRepository
     from ..infrastructure.story_project_repository import StoryProjectRepository
+    from ..domain.story_project import StoryProject
     import streamlit as st
 
     # --------------------------------------------------------
@@ -835,7 +871,100 @@ if __name__ == "__main__":
     print("TEST 4 PASSED")
 
     # --------------------------------------------------------
-    # TEST SUMMARY
+    # TEST 5: FOREIGN PROJECT ACCESS
     # --------------------------------------------------------
 
-    print("\n--- ALL TESTS PASSED ---")
+    print("\n--- TEST 5: FOREIGN PROJECT ACCESS ---")
+
+    foreign_project = StoryProject(
+        id=40,
+        title="Foreign Project",
+    )
+
+    story_project_repository.save(
+        foreign_project,
+        user_id="another_test_user",
+    )
+
+    error_caught = False
+
+    try:
+
+        service.complete_project_from_blueprint(
+            project=foreign_project,
+            blueprint=None,
+            story_id=50,
+            world_id=51,
+            model="gpt-4o",
+            user_id=user_id,
+        )
+
+    except ValueError as error:
+
+        error_caught = True
+        print("Expected error:", error)
+
+    assert error_caught is True
+
+    saved_story = story_repository.get_by_id(50)
+
+    assert saved_story is None
+
+    print("Foreign project access correctly denied.")
+    print("Story was not saved.")
+    print("TEST 5 PASSED")
+
+    # --------------------------------------------------------
+    # TEST 6: ATOMIC TRANSACTION ROLLBACK
+    # --------------------------------------------------------
+
+    print("\n--- TEST 5: ATOMIC TRANSACTION ROLLBACK ---")
+
+    # Create an existing project owned by another user.
+
+    another_project = story_service.create_project(
+        id=40,
+        title="Another User's Project",
+    )
+
+    story_project_repository.save(
+        another_project,
+        "another_test_user",
+    )
+
+    # Attempt to create a new Story and save it
+    # under the same Project ID but a different user.
+
+    error_caught = False
+
+    try:
+
+        service.create_empty_project(
+            project_id=40,
+            story_id=40,
+            world_id=41,
+            title="Transaction Test",
+            user_id=user_id,
+        )
+
+    except ValueError as error:
+
+        error_caught = True
+        print("Expected error:", error)
+
+    # Verify that the transaction was rolled back.
+
+    assert error_caught is True
+
+    saved_story = story_repository.get_by_id(40)
+    saved_project = story_project_repository.get_by_id(40)
+
+    assert saved_story is None
+    assert saved_project is not None
+    assert saved_project.title == "Another User's Project"
+    assert saved_project.story_id is None
+
+    print("Story insert successfully rolled back.")
+    print("Existing Project remained unchanged.")
+    print("TEST 6 PASSED")
+    
