@@ -101,6 +101,12 @@ class ConceptAIService:
             "- Never treat an AI proposal as accepted automatically.\n"
             "- Return only section updates that are relevant to the "
             "current conversation.\n"
+            "- Identify all sections that still lack sufficient information "
+            "in missing_sections.\n"
+            "- Do not consider a section complete solely because it contains "
+            "an AI proposal.\n"
+            "- A short but concrete piece of information provided by the user "
+            "can be sufficient to complete a section.\n"
             "- Keep the conversation natural and adaptive.\n\n"
 
             "CURRENT CONCEPT:\n"
