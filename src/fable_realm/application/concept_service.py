@@ -492,153 +492,153 @@ if __name__ == "__main__":
 
     print("Concept status:", updated_concept.status)
 
-# --------------------------------------------------------
-# TEST 9: SECOND CONVERSATION ITERATION
-# --------------------------------------------------------
+    # --------------------------------------------------------
+    # TEST 9: SECOND CONVERSATION ITERATION
+    # --------------------------------------------------------
 
-print("\n--- TEST 9: SECOND CONVERSATION ITERATION ---")
+    print("\n--- TEST 9: SECOND CONVERSATION ITERATION ---")
 
-second_response = service.process_message(
-    project_id=project_id,
-    user_message=(
+    second_response = service.process_message(
+        project_id=project_id,
+        user_message=(
+            "The kingdom is ruled by an ancient royal family. "
+            "Its people live in harmony with nature."
+        ),
+        model="gpt-4o",
+        user_id=user_id,
+    )
+
+    assert second_response.content.response
+
+    updated_concept, messages = service.get_concept(
+        project_id=project_id,
+        user_id=user_id,
+    )
+
+    assert len(messages) == 6
+
+    assert messages[-2].role == "user"
+    assert messages[-1].role == "assistant"
+
+    assert messages[-2].content == (
         "The kingdom is ruled by an ancient royal family. "
         "Its people live in harmony with nature."
-    ),
-    model="gpt-4o",
-    user_id=user_id,
-)
+    )
 
-assert second_response.content.response
+    assert messages[-1].content == second_response.content.response
 
-updated_concept, messages = service.get_concept(
-    project_id=project_id,
-    user_id=user_id,
-)
+    assert updated_concept.story_idea.value is not None
+    assert updated_concept.story_idea.accepted is True
 
-assert len(messages) == 6
+    print("Second conversation iteration successfully completed.")
+    print("Concept status:", updated_concept.status)
 
-assert messages[-2].role == "user"
-assert messages[-1].role == "assistant"
+    # --------------------------------------------------------
+    # TEST 10: PROTECT ACCEPTED SECTION
+    # --------------------------------------------------------
 
-assert messages[-2].content == (
-    "The kingdom is ruled by an ancient royal family. "
-    "Its people live in harmony with nature."
-)
+    print("\n--- TEST 10: PROTECT ACCEPTED SECTION ---")
 
-assert messages[-1].content == second_response.content.response
+    updated_concept.world.value = "An ancient mountain kingdom."
+    updated_concept.world.source = "user"
+    updated_concept.world.accepted = True
 
-assert updated_concept.story_idea.value is not None
-assert updated_concept.story_idea.accepted is True
+    concept_repository.save(
+        concept=updated_concept,
+        user_id=user_id,
+    )
 
-print("Second conversation iteration successfully completed.")
-print("Concept status:", updated_concept.status)
+    ai_response = ConceptResponseSchema(
+        response="I suggest adding a magical barrier.",
+        world=ConceptSectionUpdateSchema(
+            value="A kingdom surrounded by a magical barrier.",
+            source="ai",
+        ),
+    )
 
-# --------------------------------------------------------
-# TEST 10: PROTECT ACCEPTED SECTION
-# --------------------------------------------------------
+    service._update_concept_sections(
+        concept=updated_concept,
+        response_content=ai_response,
+    )
 
-print("\n--- TEST 10: PROTECT ACCEPTED SECTION ---")
+    assert updated_concept.world.value == "An ancient mountain kingdom."
+    assert updated_concept.world.source == "user"
+    assert updated_concept.world.accepted is True
 
-updated_concept.world.value = "An ancient mountain kingdom."
-updated_concept.world.source = "user"
-updated_concept.world.accepted = True
+    print("Accepted section correctly protected from AI proposal.")
 
-concept_repository.save(
-    concept=updated_concept,
-    user_id=user_id,
-)
+    # --------------------------------------------------------
+    # TEST 11: CONCEPT READY
+    # --------------------------------------------------------
 
-ai_response = ConceptResponseSchema(
-    response="I suggest adding a magical barrier.",
-    world=ConceptSectionUpdateSchema(
-        value="A kingdom surrounded by a magical barrier.",
-        source="ai",
-    ),
-)
+    print("\n--- TEST 11: CONCEPT READY ---")
 
-service._update_concept_sections(
-    concept=updated_concept,
-    response_content=ai_response,
-)
+    complete_response = ConceptResponseSchema(
+        response="Your story concept is complete!",
+        story_idea=ConceptSectionUpdateSchema(
+            value="A fantasy story about an ancient kingdom.",
+            source="user",
+        ),
+        genre=ConceptSectionUpdateSchema(
+            value="Fantasy",
+            source="user",
+        ),
+        world=ConceptSectionUpdateSchema(
+            value="An ancient mountain kingdom.",
+            source="user",
+        ),
+        main_characters=ConceptSectionUpdateSchema(
+            value="Members of an ancient royal family.",
+            source="user",
+        ),
+        atmosphere=ConceptSectionUpdateSchema(
+            value="Mysterious and peaceful.",
+            source="user",
+        ),
+        main_conflict=ConceptSectionUpdateSchema(
+            value="A threat to the kingdom.",
+            source="user",
+        ),
+        story_direction=ConceptSectionUpdateSchema(
+            value="The royal family must protect their kingdom.",
+            source="user",
+        ),
+    )
 
-assert updated_concept.world.value == "An ancient mountain kingdom."
-assert updated_concept.world.source == "user"
-assert updated_concept.world.accepted is True
+    service._update_concept_sections(
+        concept=updated_concept,
+        response_content=complete_response,
+    )
 
-print("Accepted section correctly protected from AI proposal.")
+    assert updated_concept.status == "Ready"
 
-# --------------------------------------------------------
-# TEST 11: CONCEPT READY
-# --------------------------------------------------------
+    concept_repository.save(
+        concept=updated_concept,
+        user_id=user_id,
+    )
 
-print("\n--- TEST 11: CONCEPT READY ---")
+    ready_concept = concept_repository.get_by_project_id(
+        project_id=project_id,
+        user_id=user_id,
+    )
 
-complete_response = ConceptResponseSchema(
-    response="Your story concept is complete!",
-    story_idea=ConceptSectionUpdateSchema(
-        value="A fantasy story about an ancient kingdom.",
-        source="user",
-    ),
-    genre=ConceptSectionUpdateSchema(
-        value="Fantasy",
-        source="user",
-    ),
-    world=ConceptSectionUpdateSchema(
-        value="An ancient mountain kingdom.",
-        source="user",
-    ),
-    main_characters=ConceptSectionUpdateSchema(
-        value="Members of an ancient royal family.",
-        source="user",
-    ),
-    atmosphere=ConceptSectionUpdateSchema(
-        value="Mysterious and peaceful.",
-        source="user",
-    ),
-    main_conflict=ConceptSectionUpdateSchema(
-        value="A threat to the kingdom.",
-        source="user",
-    ),
-    story_direction=ConceptSectionUpdateSchema(
-        value="The royal family must protect their kingdom.",
-        source="user",
-    ),
-)
+    assert ready_concept.status == "Ready"
 
-service._update_concept_sections(
-    concept=updated_concept,
-    response_content=complete_response,
-)
+    assert ready_concept.story_idea.accepted is True
+    assert ready_concept.genre.accepted is True
+    assert ready_concept.world.accepted is True
+    assert ready_concept.main_characters.accepted is True
+    assert ready_concept.atmosphere.accepted is True
+    assert ready_concept.main_conflict.accepted is True
+    assert ready_concept.story_direction.accepted is True
 
-assert updated_concept.status == "Ready"
+    print("All seven sections accepted.")
+    print("Concept successfully reached Ready status.")
 
-concept_repository.save(
-    concept=updated_concept,
-    user_id=user_id,
-)
+    # --------------------------------------------------------
+    # TEST SUMMARY
+    # --------------------------------------------------------
 
-ready_concept = concept_repository.get_by_project_id(
-    project_id=project_id,
-    user_id=user_id,
-)
-
-assert ready_concept.status == "Ready"
-
-assert ready_concept.story_idea.accepted is True
-assert ready_concept.genre.accepted is True
-assert ready_concept.world.accepted is True
-assert ready_concept.main_characters.accepted is True
-assert ready_concept.atmosphere.accepted is True
-assert ready_concept.main_conflict.accepted is True
-assert ready_concept.story_direction.accepted is True
-
-print("All seven sections accepted.")
-print("Concept successfully reached Ready status.")
-
-# --------------------------------------------------------
-# TEST SUMMARY
-# --------------------------------------------------------
-
-print("\n====================================")
-print("ALL CONCEPT SERVICE TESTS PASSED")
-print("====================================")
+    print("\n====================================")
+    print("ALL CONCEPT SERVICE TESTS PASSED")
+    print("====================================")
