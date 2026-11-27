@@ -36,9 +36,11 @@ class BlueprintService:
         self,
         blueprint_repository,
         story_project_repository,
+        story_ai_service=None,
     ):
         self.blueprint_repository = blueprint_repository
         self.story_project_repository = story_project_repository
+        self.story_ai_service = story_ai_service
 
     # --------------------------------------------------------
     # GET BLUEPRINT
@@ -78,6 +80,71 @@ class BlueprintService:
             raise ValueError(
                 "Blueprint not found or does not belong to this user."
             )
+
+        section = getattr(blueprint, section_name)
+
+        section.update_value(value)
+
+        self.blueprint_repository.save(
+            blueprint=blueprint,
+            user_id=user_id,
+        )
+
+        return blueprint
+
+    # --------------------------------------------------------
+    # GENERATE SECTION UPDATE
+    # --------------------------------------------------------
+
+    def generate_section_update(
+        self,
+        project_id,
+        section_name,
+        user_instruction,
+        model,
+        user_id,
+    ):
+
+        if section_name not in self.SECTION_NAMES:
+            raise ValueError("Unknown blueprint section.")
+
+        if not user_instruction or not user_instruction.strip():
+            raise ValueError("User instruction cannot be empty.")
+
+        if not model or not model.strip():
+            raise ValueError("Model cannot be empty.")
+
+        if self.story_ai_service is None:
+            raise ValueError("Story AI service is not configured.")
+
+        blueprint = self.get_blueprint(
+            project_id=project_id,
+            user_id=user_id,
+        )
+
+        if blueprint is None:
+            raise ValueError(
+                "Blueprint not found or does not belong to this user."
+            )
+
+        response = self.story_ai_service.generate_blueprint_section(
+            blueprint=blueprint,
+            section_name=section_name,
+            user_instruction=user_instruction,
+            model=model,
+        )
+
+        value = response.content.value
+
+        if section_name in ["main_characters", "plot_outline"]:
+
+            if not isinstance(value, list) or not all(
+                isinstance(item, str) for item in value
+            ):
+                raise ValueError("Section must contain a list of strings.")
+
+        elif not isinstance(value, str):
+            raise ValueError("Section must contain a string.")
 
         section = getattr(blueprint, section_name)
 

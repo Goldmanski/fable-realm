@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 # ============================================================
 # STORY BLUEPRINT SCHEMA
 # ============================================================
@@ -17,6 +16,9 @@ class StoryBlueprintSchema(BaseModel):
     plot_outline: list[str]
     story_direction: str
 
+class BlueprintSectionResponseSchema(BaseModel):
+
+    value: str | list[str]
 
 # ============================================================
 # MANUAL TESTS

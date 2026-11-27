@@ -1,6 +1,7 @@
 
 from ..ai.provider import AIResponse
 from ..ai.story_blueprint_schema import StoryBlueprintSchema
+from ..ai.story_blueprint_schema import BlueprintSectionResponseSchema
 from ..domain.story_blueprint import StoryBlueprint
 from ..ai.initial_story_schema import InitialStorySchema
 from uuid import uuid4
@@ -274,6 +275,97 @@ class StoryAIService:
             model=response.model,
             usage=response.usage,
         )
+
+    # --------------------------------------------------------
+    # GENERATE BLUEPRINT SECTION
+    # --------------------------------------------------------
+
+    def generate_blueprint_section(
+        self,
+        blueprint,
+        section_name,
+        user_instruction,
+        model,
+    ):
+
+        if blueprint is None:
+            raise ValueError("Blueprint cannot be None.")
+
+        section_names = [
+            "title",
+            "synopsis",
+            "genre",
+            "world",
+            "main_characters",
+            "atmosphere",
+            "main_conflict",
+            "plot_outline",
+            "story_direction",
+        ]
+
+        if section_name not in section_names:
+            raise ValueError("Unknown blueprint section.")
+
+        if not user_instruction or not user_instruction.strip():
+            raise ValueError("User instruction cannot be empty.")
+
+        if not model or not model.strip():
+            raise ValueError("Model cannot be empty.")
+
+        sections = [
+            ("Title", blueprint.title),
+            ("Synopsis", blueprint.synopsis),
+            ("Genre", blueprint.genre),
+            ("World", blueprint.world),
+            ("Main Characters", blueprint.main_characters),
+            ("Atmosphere", blueprint.atmosphere),
+            ("Main Conflict", blueprint.main_conflict),
+            ("Plot Outline", blueprint.plot_outline),
+            ("Story Direction", blueprint.story_direction),
+        ]
+
+        context = []
+
+        for name, section in sections:
+            context.append(f"{name}: {section.value}")
+
+        selected_section = getattr(blueprint, section_name)
+
+        system_message = (
+            "You are a creative writing assistant. "
+            "Your task is to revise one selected section of a Story Blueprint. "
+            "Preserve the user's original creative intent and maintain "
+            "consistency with the rest of the Blueprint. "
+            "Do not modify or contradict other sections. "
+            "Return only the revised content of the selected section, "
+            "without explanations or additional commentary."
+            "Return the revised content using the provided response schema. "
+            "For main_characters and plot_outline, return a list of strings. "
+            "For all other sections, return a single string."
+        )
+
+        context_text = "\n".join(context)
+
+        user_message = (
+            "CURRENT STORY BLUEPRINT:\n"
+            f"{context_text}\n\n"
+            f"SELECTED SECTION: {section_name}\n"
+            f"ORIGINAL CONCEPT: {selected_section.source_value}\n"
+            f"CURRENT CONTENT: {selected_section.value}\n\n"
+            f"USER INSTRUCTION: {user_instruction}\n\n"
+            "Prepare a revised version of the selected section."
+        )
+
+        return self.generate_text(
+            user_message=user_message,
+            system_message=system_message,
+            model=model,
+            temperature=0.8,
+            max_tokens=1500,
+            response_model=BlueprintSectionResponseSchema,
+            operation="generate_blueprint_section",
+            project_id=blueprint.project_id,
+        ) 
 
     # --------------------------------------------------------
     # GENERATE INITIAL STORY

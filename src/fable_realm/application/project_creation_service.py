@@ -38,6 +38,7 @@ class ProjectCreationService:
     def __init__(
         self,
         story_service,
+        concept_service,
         story_ai_service,
         story_initialization_service,
         image_provider,
@@ -48,6 +49,7 @@ class ProjectCreationService:
         blueprint_repository,
     ):
         self.story_service = story_service
+        self.concept_service = concept_service
         self.story_ai_service = story_ai_service
         self.story_initialization_service = story_initialization_service
         self.image_provider = image_provider
@@ -60,6 +62,25 @@ class ProjectCreationService:
     # --------------------------------------------------------
     # PROJECT CREATION
     # --------------------------------------------------------
+
+    def create_concept_project(self, project_id, project_title, user_id):
+
+        project = self.story_service.create_project(
+            id=project_id,
+            title=project_title,
+        )
+
+        self.story_project_repository.save(
+            project=project,
+            user_id=user_id,
+        )
+
+        concept = self.concept_service.create_concept(
+            project_id=project.id,
+            user_id=user_id,
+        )
+
+        return project, concept
 
     def create_empty_project(self, project_id, story_id, world_id, title, user_id,):
 
@@ -102,29 +123,35 @@ class ProjectCreationService:
     # BLUEPRINT GENERATION
     # --------------------------------------------------------
 
-    def generate_project_blueprint(
-        self,
-        project_id,
-        project_title,
-        concept,
-        model,
-        user_id,
-    ):
+    def generate_project_blueprint(self, project_id, model, user_id):
 
-        project = self.story_service.create_project(
-            id=project_id,
-            title=project_title
+        project = self.story_project_repository.get_by_id_for_user(
+            project_id=project_id,
+            user_id=user_id,
         )
+
+        if project is None:
+            raise ValueError(
+                "Project not found or does not belong to this user."
+            )
+
+        concept, _ = self.concept_service.get_concept(
+            project_id=project_id,
+            user_id=user_id,
+        )
+
+        if concept is None:
+            raise ValueError(
+                "Concept not found or does not belong to this user."
+            )
 
         blueprint_response = self.story_ai_service.generate_story_blueprint(
             project=project,
             concept=concept,
-            model=model
+            model=model,
         )
 
         blueprint = blueprint_response.content
-
-        self.story_project_repository.save(project, user_id)
 
         self.blueprint_repository.save(
             blueprint=blueprint,
@@ -504,21 +531,12 @@ class ProjectCreationService:
 
 if __name__ == "__main__":
 
-    from .story_service import StoryService
-    from .story_ai_service import StoryAIService
-    from .ai_service import AIService
-    from ..ai.provider_factory import AIProviderFactory
-    from .story_initialization_service import StoryInitializationService
-    from ..application.ai_usage_service import AIUsageService
-    from ..infrastructure.ai_usage_repository import AIUsageRepository
-    from ..infrastructure.story_repository import StoryRepository
-    from ..infrastructure.story_project_repository import StoryProjectRepository
-    from ..infrastructure.blueprint_repository import BlueprintRepository
-    from ..domain.story_project import StoryProject
-    from ..domain.concept import Concept
-    from .blueprint_service import BlueprintService
-    from ..infrastructure.blueprint_repository import BlueprintRepository
-    from ..ai.provider import AIResponse
+    # THIRD-PARTY LIBRARIES
+
+    import streamlit as st
+
+    # AI
+
     from ..ai.initial_story_schema import (
         InitialStorySchema,
         CharacterSchema,
@@ -528,7 +546,34 @@ if __name__ == "__main__":
         SceneSchema,
         ChapterSchema,
     )
-    import streamlit as st
+    from ..ai.provider import AIResponse
+    from ..ai.provider_factory import AIProviderFactory
+    from ..ai.story_blueprint_schema import BlueprintSectionResponseSchema
+
+    # DOMAIN
+
+    from ..domain.concept import Concept
+    from ..domain.story_project import StoryProject
+
+    # APPLICATION
+
+    from .ai_service import AIService
+    from .ai_usage_service import AIUsageService
+    from .blueprint_service import BlueprintService
+    from .concept_ai_service import ConceptAIService
+    from .concept_service import ConceptService
+    from .story_ai_service import StoryAIService
+    from .story_initialization_service import StoryInitializationService
+    from .story_service import StoryService
+
+    # INFRASTRUCTURE
+
+    from ..infrastructure.ai_usage_repository import AIUsageRepository
+    from ..infrastructure.blueprint_repository import BlueprintRepository
+    from ..infrastructure.concept_message_repository import ConceptMessageRepository
+    from ..infrastructure.concept_repository import ConceptRepository
+    from ..infrastructure.story_project_repository import StoryProjectRepository
+    from ..infrastructure.story_repository import StoryRepository
 
     # --------------------------------------------------------
     # CREATE SERVICES
@@ -575,12 +620,27 @@ if __name__ == "__main__":
 
     story_repository = StoryRepository()
     story_project_repository = StoryProjectRepository()
+    concept_repository = ConceptRepository()
+    concept_message_repository = ConceptMessageRepository()
+
+    concept_ai_service = ConceptAIService(
+        ai_service=ai_service,
+        ai_usage_service=ai_usage_service,
+    )
+
+    concept_service = ConceptService(
+        concept_repository=concept_repository,
+        concept_message_repository=concept_message_repository,
+        story_project_repository=story_project_repository,
+        concept_ai_service=concept_ai_service,
+    )
     blueprint_repository = BlueprintRepository()
 
     user_id = "manual_test_user"
 
     service = ProjectCreationService(
         story_service=story_service,
+        concept_service=concept_service,
         story_ai_service=story_ai_service,
         story_initialization_service=story_initialization_service,
         image_provider=image_provider,
@@ -594,6 +654,7 @@ if __name__ == "__main__":
     blueprint_service = BlueprintService(
         blueprint_repository=blueprint_repository,
         story_project_repository=story_project_repository,
+        story_ai_service=story_ai_service,
     )
 
     # --------------------------------------------------------
@@ -656,14 +717,39 @@ if __name__ == "__main__":
 
     print("\n--- TEST 2: GENERATE PROJECT BLUEPRINT ---")
 
-    from ..domain.concept import Concept
-
     blueprint_project_id = str(uuid4())
 
-    concept = Concept(
-        id=2,
+    # CREATE PROJECT AND CONCEPT
+
+    project, concept = service.create_concept_project(
         project_id=blueprint_project_id,
+        project_title="The Forgotten Kingdom",
+        user_id=user_id,
     )
+
+    # VERIFY PROJECT PERSISTENCE
+
+    saved_project = story_project_repository.get_by_id_for_user(
+        project_id=blueprint_project_id,
+        user_id=user_id,
+    )
+
+    assert saved_project is not None
+    assert saved_project.id == project.id
+    assert saved_project.story_id is None
+
+    # VERIFY CONCEPT PERSISTENCE
+
+    saved_concept = concept_repository.get_by_project_id(
+        project_id=blueprint_project_id,
+        user_id=user_id,
+    )
+
+    assert saved_concept is not None
+    assert saved_concept.id == concept.id
+    assert saved_concept.project_id == project.id
+
+    # FILL CONCEPT SECTIONS
 
     concept.story_idea.value = "An exiled prince discovers an ancient prophecy."
     concept.genre.value = "Fantasy"
@@ -673,32 +759,59 @@ if __name__ == "__main__":
     concept.main_conflict.value = "The prince must reclaim his kingdom."
     concept.story_direction.value = "A journey of redemption."
 
-    concept.story_idea.accepted = True
-    concept.genre.accepted = True
-    concept.world.accepted = True
-    concept.main_characters.accepted = True
-    concept.atmosphere.accepted = True
-    concept.main_conflict.accepted = True
-    concept.story_direction.accepted = True
+    # ACCEPT CONCEPT SECTIONS
+
+    sections = [
+        concept.story_idea,
+        concept.genre,
+        concept.world,
+        concept.main_characters,
+        concept.atmosphere,
+        concept.main_conflict,
+        concept.story_direction,
+    ]
+
+    for section in sections:
+        section.source = "user"
+        section.accepted = True
 
     concept.update_status()
 
+    assert concept.status == "Ready"
+
+    # SAVE COMPLETED CONCEPT
+
+    concept_repository.save(
+        concept=concept,
+        user_id=user_id,
+    )
+
+    # VERIFY CONCEPT UPDATE PERSISTENCE
+
+    saved_concept = concept_repository.get_by_project_id(
+        project_id=blueprint_project_id,
+        user_id=user_id,
+    )
+
+    assert saved_concept is not None
+    assert saved_concept.status == "Ready"
+
+    # GENERATE BLUEPRINT
+
     project, blueprint = service.generate_project_blueprint(
         project_id=blueprint_project_id,
-        project_title="The Forgotten Kingdom",
-        concept=concept,
         model="gpt-4o",
         user_id=user_id,
     )
 
-    # Verify project.
+    # VERIFY PROJECT
+
     assert project.id == blueprint_project_id
     assert project.title == "The Forgotten Kingdom"
-
-    # Verify that the project has no story yet.
     assert project.story_id is None
 
-    # Verify generated blueprint.
+    # VERIFY GENERATED BLUEPRINT
+
     assert blueprint.title.value
     assert blueprint.synopsis.value
     assert blueprint.genre.value
@@ -709,9 +822,19 @@ if __name__ == "__main__":
     assert blueprint.plot_outline.value
     assert blueprint.story_direction.value
 
-    saved_project = story_project_repository.get_by_id(
-        blueprint_project_id
+    # VERIFY PROJECT PERSISTENCE
+
+    saved_project = story_project_repository.get_by_id_for_user(
+        project_id=blueprint_project_id,
+        user_id=user_id,
     )
+
+    assert saved_project is not None
+    assert saved_project.title == "The Forgotten Kingdom"
+    assert saved_project.story_id is None
+
+    # VERIFY BLUEPRINT PERSISTENCE
+
     saved_blueprint = blueprint_repository.get_by_project_id(
         project_id=blueprint_project_id,
         user_id=user_id,
@@ -731,13 +854,8 @@ if __name__ == "__main__":
     assert saved_blueprint.plot_outline.value == blueprint.plot_outline.value
     assert saved_blueprint.story_direction.value == blueprint.story_direction.value
 
-    print("Blueprint successfully saved and restored from database.")
-
-    assert saved_project is not None
-    assert saved_project.title == "The Forgotten Kingdom"
-    assert saved_project.story_id is None
-
-    print("Blueprint project persistence verified.")
+    print("Project, Concept and Blueprint successfully saved and verified.")
+    print("TEST 2 PASSED")
 
     # --------------------------------------------------------
     # TEST 2A: BLUEPRINT SERVICE INTEGRATION
@@ -898,6 +1016,120 @@ if __name__ == "__main__":
     print("All nine Blueprint sections successfully accepted.")
     print("Acceptance persisted in database.")
     print("TEST 2B PASSED")
+
+    # --------------------------------------------------------
+    # TEST 2C: AI BLUEPRINT SECTION UPDATE
+    # --------------------------------------------------------
+
+    print("\n--- TEST 2C: AI BLUEPRINT SECTION UPDATE ---")
+
+    # ACCEPT SYNOPSIS BEFORE AI UPDATE
+
+    accepted_blueprint = blueprint_service.accept_section(
+        project_id=project.id,
+        section_name="synopsis",
+        user_id=user_id,
+    )
+
+    assert accepted_blueprint.synopsis.accepted is True
+
+    source_value = accepted_blueprint.synopsis.source_value
+    original_genre = accepted_blueprint.genre.value
+
+    # MOCK AI RESPONSE
+
+    original_provider_generate = ai_service.provider.generate
+
+    def generate_test_blueprint_section(request):
+
+        assert request.response_model is BlueprintSectionResponseSchema
+
+        return AIResponse(
+            content=BlueprintSectionResponseSchema(
+                value=(
+                    "An exiled prince discovers an ancient prophecy "
+                    "that could determine the fate of his kingdom."
+                )
+            ),
+            model=request.model,
+        )
+
+    ai_service.provider.generate = generate_test_blueprint_section
+
+    try:
+
+        updated_blueprint = blueprint_service.generate_section_update(
+            project_id=project.id,
+            section_name="synopsis",
+            user_instruction="Make the synopsis more engaging.",
+            model="gpt-4o",
+            user_id=user_id,
+        )
+
+    finally:
+
+        ai_service.provider.generate = original_provider_generate
+
+    # VERIFY GENERATED VALUE
+
+    assert updated_blueprint.synopsis.value == (
+        "An exiled prince discovers an ancient prophecy "
+        "that could determine the fate of his kingdom."
+    )
+
+    # VERIFY ACCEPTANCE RESET
+
+    assert updated_blueprint.synopsis.accepted is False
+
+    # VERIFY ORIGINAL CONCEPT VALUE PRESERVED
+
+    assert updated_blueprint.synopsis.source_value == source_value
+
+    # VERIFY OTHER SECTIONS UNCHANGED
+
+    assert updated_blueprint.genre.value == original_genre
+
+    # VERIFY PERSISTENCE
+
+    loaded_blueprint = blueprint_service.get_blueprint(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    assert loaded_blueprint is not None
+
+    assert loaded_blueprint.synopsis.value == updated_blueprint.synopsis.value
+    assert loaded_blueprint.synopsis.accepted is False
+    assert loaded_blueprint.synopsis.source_value == source_value
+
+    print("AI section update successfully generated and saved.")
+    print("Original Concept value preserved.")
+    print("Acceptance correctly reset.")
+    print("TEST 2C PASSED")
+
+    # RE-ACCEPT BLUEPRINT AFTER AI UPDATE
+
+    accepted_blueprint = blueprint_service.accept_all(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    # VERIFY ACCEPTANCE
+
+    blueprint = blueprint_service.get_blueprint(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    assert blueprint is not None
+
+    for section_name in blueprint_service.SECTION_NAMES:
+
+        section = getattr(blueprint, section_name)
+
+        assert section.accepted is True
+
+    print("All Blueprint sections accepted after AI update.")
 
     print("Project ID:", project.id)
     print("Project title:", project.title)
