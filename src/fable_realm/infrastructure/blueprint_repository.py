@@ -357,47 +357,50 @@ class BlueprintRepository:
 
     def delete(self, project_id, user_id, connection=None):
 
-        own_connection = connection is None
+        if connection is None:
 
-        if own_connection:
             connection = get_connection()
 
-        try:
-
-            with connection.cursor() as cursor:
-
-                cursor.execute(
-                    """
-                    DELETE FROM story_blueprints
-                    USING story_projects
-                    WHERE story_blueprints.project_id = story_projects.id
-                    AND story_projects.id = %s
-                    AND story_projects.user_id = %s
-                    """,
-                    (
-                        str(project_id),
+            try:
+                with connection:
+                    deleted = self._delete_blueprint(
+                        project_id,
                         user_id,
-                    ),
-                )
+                        connection,
+                    )
 
-                deleted = cursor.rowcount > 0
-
-            if own_connection:
-                connection.commit()
-
-            return deleted
-
-        except Exception:
-
-            if own_connection:
-                connection.rollback()
-
-            raise
-
-        finally:
-
-            if own_connection:
+            finally:
                 connection.close()
+
+        else:
+            deleted = self._delete_blueprint(
+                project_id,
+                user_id,
+                connection,
+            )
+
+        return deleted
+
+
+    def _delete_blueprint(self, project_id, user_id, connection):
+
+        with connection.cursor() as cursor:
+
+            cursor.execute(
+                """
+                DELETE FROM story_blueprints
+                USING story_projects
+                WHERE story_blueprints.project_id = story_projects.id
+                AND story_projects.id = %s
+                AND story_projects.user_id = %s
+                """,
+                (
+                    str(project_id),
+                    user_id,
+                ),
+            )
+
+            return cursor.rowcount > 0
 
 # ============================================================
 # MANUAL TESTS

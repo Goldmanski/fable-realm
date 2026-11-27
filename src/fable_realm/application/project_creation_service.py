@@ -1353,7 +1353,7 @@ if __name__ == "__main__":
     # TEST 6: ATOMIC TRANSACTION ROLLBACK
     # --------------------------------------------------------
 
-    print("\n--- TEST 5: ATOMIC TRANSACTION ROLLBACK ---")
+    print("\n--- TEST 6: ATOMIC TRANSACTION ROLLBACK ---")
 
     # Create an existing project owned by another user.
 
