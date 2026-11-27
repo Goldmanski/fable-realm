@@ -10,6 +10,7 @@ from ..ai.image_provider import ImageRequest
 from ..domain.illustration import Illustration
 from ..infrastructure.story_repository import StoryRepository
 from ..infrastructure.story_project_repository import StoryProjectRepository
+from ..infrastructure.blueprint_repository import BlueprintRepository
 from ..infrastructure.database_connection import get_connection
 
 
@@ -44,6 +45,7 @@ class ProjectCreationService:
         ai_usage_service,
         story_repository,
         story_project_repository,
+        blueprint_repository,
     ):
         self.story_service = story_service
         self.story_ai_service = story_ai_service
@@ -53,6 +55,7 @@ class ProjectCreationService:
         self.ai_usage_service = ai_usage_service
         self.story_repository = story_repository
         self.story_project_repository = story_project_repository
+        self.blueprint_repository = blueprint_repository
     
     # --------------------------------------------------------
     # PROJECT CREATION
@@ -123,6 +126,11 @@ class ProjectCreationService:
 
         self.story_project_repository.save(project, user_id)
 
+        self.blueprint_repository.save(
+            blueprint=blueprint,
+            user_id=user_id,
+        )
+
         return project, blueprint
 
     # --------------------------------------------------------
@@ -139,6 +147,8 @@ class ProjectCreationService:
         user_id,
     ):
 
+        # VERIFY PROJECT OWNERSHIP
+
         saved_project = self.story_project_repository.get_by_id_for_user(
             project_id=project.id,
             user_id=user_id,
@@ -150,6 +160,49 @@ class ProjectCreationService:
             )
 
         project = saved_project
+
+        # VERIFY BLUEPRINT
+
+        if blueprint is None or blueprint.project_id != project.id:
+            raise ValueError(
+                "Blueprint does not belong to this project."
+            )
+
+        saved_blueprint = self.blueprint_repository.get_by_project_id(
+            project_id=project.id,
+            user_id=user_id,
+        )
+
+        if saved_blueprint is None or saved_blueprint.id != blueprint.id:
+            raise ValueError(
+                "Blueprint not found or does not belong to this project."
+            )
+
+        # VERIFY BLUEPRINT ACCEPTANCE
+
+        blueprint = saved_blueprint
+
+        sections = [
+            blueprint.title,
+            blueprint.synopsis,
+            blueprint.genre,
+            blueprint.world,
+            blueprint.main_characters,
+            blueprint.atmosphere,
+            blueprint.main_conflict,
+            blueprint.plot_outline,
+            blueprint.story_direction,
+        ]
+
+        for section in sections:
+
+            if not section.accepted:
+                raise ValueError(
+                    "All blueprint sections must be accepted "
+                    "before project initialization."
+                )
+
+        # CREATE STORY
 
         story = self.story_service.create_story(
             id=story_id,
@@ -444,8 +497,21 @@ if __name__ == "__main__":
     from ..infrastructure.ai_usage_repository import AIUsageRepository
     from ..infrastructure.story_repository import StoryRepository
     from ..infrastructure.story_project_repository import StoryProjectRepository
+    from ..infrastructure.blueprint_repository import BlueprintRepository
     from ..domain.story_project import StoryProject
     from ..domain.concept import Concept
+    from .blueprint_service import BlueprintService
+    from ..infrastructure.blueprint_repository import BlueprintRepository
+    from ..ai.provider import AIResponse
+    from ..ai.initial_story_schema import (
+        InitialStorySchema,
+        CharacterSchema,
+        LocationSchema,
+        ArtifactSchema,
+        DialogueLineSchema,
+        SceneSchema,
+        ChapterSchema,
+    )
     import streamlit as st
 
     # --------------------------------------------------------
@@ -493,6 +559,8 @@ if __name__ == "__main__":
 
     story_repository = StoryRepository()
     story_project_repository = StoryProjectRepository()
+    blueprint_repository = BlueprintRepository()
+    blueprint_repository = BlueprintRepository()
 
     user_id = "manual_test_user"
 
@@ -504,6 +572,12 @@ if __name__ == "__main__":
         image_storage=image_storage,
         ai_usage_service=ai_usage_service,
         story_repository=story_repository,
+        story_project_repository=story_project_repository,
+        blueprint_repository=blueprint_repository,
+    )
+
+    blueprint_service = BlueprintService(
+        blueprint_repository=blueprint_repository,
         story_project_repository=story_project_repository,
     )
 
@@ -569,9 +643,11 @@ if __name__ == "__main__":
 
     from ..domain.concept import Concept
 
+    blueprint_project_id = str(uuid4())
+
     concept = Concept(
         id=2,
-        project_id=2,
+        project_id=blueprint_project_id,
     )
 
     concept.story_idea.value = "An exiled prince discovers an ancient prophecy."
@@ -593,7 +669,7 @@ if __name__ == "__main__":
     concept.update_status()
 
     project, blueprint = service.generate_project_blueprint(
-        project_id=2,
+        project_id=blueprint_project_id,
         project_title="The Forgotten Kingdom",
         concept=concept,
         model="gpt-4o",
@@ -601,7 +677,7 @@ if __name__ == "__main__":
     )
 
     # Verify project.
-    assert project.id == 2
+    assert project.id == blueprint_project_id
     assert project.title == "The Forgotten Kingdom"
 
     # Verify that the project has no story yet.
@@ -618,13 +694,195 @@ if __name__ == "__main__":
     assert blueprint.plot_outline.value
     assert blueprint.story_direction.value
 
-    saved_project = story_project_repository.get_by_id(2)
+    saved_project = story_project_repository.get_by_id(
+        blueprint_project_id
+    )
+    saved_blueprint = blueprint_repository.get_by_project_id(
+        project_id=blueprint_project_id,
+        user_id=user_id,
+    )
+
+    assert saved_blueprint is not None
+    assert saved_blueprint.id == blueprint.id
+    assert saved_blueprint.project_id == blueprint.project_id
+
+    assert saved_blueprint.title.value == blueprint.title.value
+    assert saved_blueprint.synopsis.value == blueprint.synopsis.value
+    assert saved_blueprint.genre.value == blueprint.genre.value
+    assert saved_blueprint.world.value == blueprint.world.value
+    assert saved_blueprint.main_characters.value == blueprint.main_characters.value
+    assert saved_blueprint.atmosphere.value == blueprint.atmosphere.value
+    assert saved_blueprint.main_conflict.value == blueprint.main_conflict.value
+    assert saved_blueprint.plot_outline.value == blueprint.plot_outline.value
+    assert saved_blueprint.story_direction.value == blueprint.story_direction.value
+
+    print("Blueprint successfully saved and restored from database.")
 
     assert saved_project is not None
     assert saved_project.title == "The Forgotten Kingdom"
     assert saved_project.story_id is None
 
     print("Blueprint project persistence verified.")
+
+    # --------------------------------------------------------
+    # TEST 2A: BLUEPRINT SERVICE INTEGRATION
+    # --------------------------------------------------------
+
+    print("\n--- TEST 2A: BLUEPRINT SERVICE INTEGRATION ---")
+
+    # GET BLUEPRINT
+
+    loaded_blueprint = blueprint_service.get_blueprint(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    assert loaded_blueprint is not None
+    assert loaded_blueprint.id == blueprint.id
+
+    print("Blueprint successfully retrieved.")
+
+    # ACCEPT SECTION
+
+    accepted_blueprint = blueprint_service.accept_section(
+        project_id=project.id,
+        section_name="synopsis",
+        user_id=user_id,
+    )
+
+    assert accepted_blueprint.synopsis.accepted is True
+
+    # VERIFY ACCEPTANCE PERSISTENCE
+
+    loaded_blueprint = blueprint_service.get_blueprint(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    assert loaded_blueprint.synopsis.accepted is True
+
+    print("Synopsis acceptance successfully persisted.")
+
+    # UPDATE SECTION
+
+    updated_blueprint = blueprint_service.update_section(
+        project_id=project.id,
+        section_name="synopsis",
+        value="An exiled prince discovers a prophecy that could change his kingdom.",
+        user_id=user_id,
+    )
+
+    assert updated_blueprint.synopsis.value == (
+        "An exiled prince discovers a prophecy that could change his kingdom."
+    )
+
+    assert updated_blueprint.synopsis.accepted is False
+
+    print("Synopsis successfully updated.")
+    print("Acceptance correctly reset.")
+
+    # VERIFY UPDATE AND ACCEPTANCE RESET PERSISTENCE
+
+    loaded_blueprint = blueprint_service.get_blueprint(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    assert loaded_blueprint.synopsis.value == (
+        "An exiled prince discovers a prophecy that could change his kingdom."
+    )
+
+    assert loaded_blueprint.synopsis.accepted is False
+
+    blueprint = loaded_blueprint
+
+    print("Updated synopsis and acceptance reset verified in database.")
+    print("TEST 2A PASSED")
+
+    # --------------------------------------------------------
+    # TEST 2B: BLUEPRINT ACCEPTANCE VALIDATION
+    # --------------------------------------------------------
+
+    print("\n--- TEST 2B: BLUEPRINT ACCEPTANCE VALIDATION ---")
+
+    # VERIFY THAT UNACCEPTED BLUEPRINT CANNOT INITIALIZE STORY
+
+    rejected_story_id = str(uuid4())
+
+    error_caught = False
+
+    try:
+
+        service.complete_project_from_blueprint(
+            project=project,
+            blueprint=blueprint,
+            story_id=rejected_story_id,
+            world_id=22,
+            model="gpt-4o",
+            user_id=user_id,
+        )
+
+    except ValueError as error:
+
+        error_caught = True
+        print("Expected error:", error)
+
+    assert error_caught is True
+
+    # VERIFY THAT STORY WAS NOT CREATED
+
+    rejected_story = story_repository.get_by_id(
+        rejected_story_id
+    )
+
+    assert rejected_story is None
+
+    # VERIFY THAT PROJECT REMAINS UNCHANGED
+
+    saved_project = story_project_repository.get_by_id(
+        project.id
+    )
+
+    assert saved_project is not None
+    assert saved_project.story_id is None
+
+    print("Unaccepted Blueprint correctly rejected.")
+    print("Story was not created.")
+    print("Project remained unchanged.")
+
+    # ACCEPT ALL BLUEPRINT SECTIONS
+
+    accepted_blueprint = blueprint_service.accept_all(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    # VERIFY ALL SECTIONS ACCEPTED
+
+    for section_name in blueprint_service.SECTION_NAMES:
+
+        section = getattr(accepted_blueprint, section_name)
+
+        assert section.accepted is True
+
+    # VERIFY ACCEPTANCE PERSISTENCE
+
+    blueprint = blueprint_service.get_blueprint(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    assert blueprint is not None
+
+    for section_name in blueprint_service.SECTION_NAMES:
+
+        section = getattr(blueprint, section_name)
+
+        assert section.accepted is True
+
+    print("All nine Blueprint sections successfully accepted.")
+    print("Acceptance persisted in database.")
+    print("TEST 2B PASSED")
 
     print("Project ID:", project.id)
     print("Project title:", project.title)
@@ -647,52 +905,173 @@ if __name__ == "__main__":
 
     print("\n--- TEST 3: COMPLETE PROJECT FROM BLUEPRINT ---")
 
-    # Create a story based on the generated blueprint.
-    project, story = service.complete_project_from_blueprint(
-        project=project,
-        blueprint=blueprint,
-        story_id=20,
-        world_id=21,
-        model="gpt-4o",
-        user_id=user_id,
+    # CREATE UNIQUE IDS
+
+    test_story_id = str(uuid4())
+    test_world_id = str(uuid4())
+
+    # CREATE CONTROLLED INITIAL STORY DATA
+
+    initial_story = InitialStorySchema(
+        characters=[
+            CharacterSchema(
+                name="Elias Vey",
+                description="A young prince determined to protect his kingdom.",
+                role="protagonist",
+            ),
+            CharacterSchema(
+                name="Mara Vey",
+                description="A royal advisor and trusted companion.",
+                role="supporting",
+            ),
+        ],
+        locations=[
+            LocationSchema(
+                name="Emberfall Keep",
+                description="An ancient fortress in the kingdom.",
+            ),
+        ],
+        artifacts=[
+            ArtifactSchema(
+                name="Cinder Crown",
+                description="An ancient crown with mysterious powers.",
+            ),
+        ],
+        relationships=[],
+        chapters=[
+            ChapterSchema(
+                number=1,
+                title="The First Ember",
+                scenes=[
+                    SceneSchema(
+                        title="The Old Signal",
+                        narrative=(
+                            "Elias and Mara discover a mysterious "
+                            "signal inside the ancient fortress."
+                        ),
+                        dialogue=[
+                            DialogueLineSchema(
+                                speaker="Elias Vey",
+                                text="Something is calling us.",
+                            ),
+                            DialogueLineSchema(
+                                speaker="Mara Vey",
+                                text="We must discover its source.",
+                            ),
+                        ],
+                        characters=[
+                            "Elias Vey",
+                            "Mara Vey",
+                        ],
+                        location="Emberfall Keep",
+                        artifacts=["Cinder Crown"],
+                    ),
+                ],
+            ),
+        ],
     )
 
-    # Verify project and story relationship.
-    assert project.id == 2
-    assert project.story_id == 20
+    # REPLACE AI PROVIDER RESPONSE FOR THIS TEST ONLY
 
-    # Verify story.
-    assert story.id == 20
+    original_provider_generate = ai_service.provider.generate
+
+    def generate_test_initial_story(request):
+
+        assert request.response_model is InitialStorySchema
+
+        return AIResponse(
+            content=initial_story,
+            model=request.model,
+        )
+
+    ai_service.provider.generate = generate_test_initial_story
+
+    # COMPLETE PROJECT
+
+    try:
+
+        project, story = service.complete_project_from_blueprint(
+            project=project,
+            blueprint=blueprint,
+            story_id=test_story_id,
+            world_id=test_world_id,
+            model="gpt-4o",
+            user_id=user_id,
+        )
+
+    finally:
+
+        ai_service.provider.generate = original_provider_generate
+
+    # VERIFY PROJECT AND STORY RELATIONSHIP
+
+    assert project.id == blueprint_project_id
+    assert project.story_id == test_story_id
+
+    # VERIFY STORY
+
+    assert story.id == test_story_id
     assert story.title == blueprint.title.value
 
-    # Verify blueprint data.
+    # VERIFY BLUEPRINT DATA
+
     assert story.settings.genre == blueprint.genre.value
     assert story.world.description == blueprint.world.value
 
-    # Verify default settings.
+    # VERIFY DEFAULT SETTINGS
+
     assert story.settings.tone == "Balanced"
     assert story.settings.length == "Medium"
     assert story.settings.creativity == 0.5
 
-    # Verify world.
-    assert story.world.id == 21
+    # VERIFY WORLD
+
+    assert story.world.id == test_world_id
     assert story.world.name == "Story World"
 
-    # Verify initial story initialization.
-    assert story.chapters
-    assert story.characters
+    # VERIFY INITIAL STORY INITIALIZATION
 
-    saved_project = story_project_repository.get_by_id(2)
-    saved_story = story_repository.get_by_id(20)
+    assert len(story.characters) == 2
+    assert len(story.chapters) == 1
+
+    assert story.characters[0].name == "Elias Vey"
+    assert story.characters[1].name == "Mara Vey"
+
+    assert len(story.locations) == 1
+    assert story.locations[0].name == "Emberfall Keep"
+
+    assert len(story.artifacts) == 1
+    assert story.artifacts[0].name == "Cinder Crown"
+
+    # VERIFY DIALOGUE SPEAKERS
+
+    scene = story.chapters[0].scenes[0]
+
+    assert len(scene.dialogue) == 2
+
+    assert scene.dialogue[0].speaker_character_id == story.characters[0].id
+    assert scene.dialogue[1].speaker_character_id == story.characters[1].id
+
+    # VERIFY PERSISTENCE
+
+    saved_project = story_project_repository.get_by_id(project.id)
+
+    saved_story = story_repository.get_by_id(test_story_id)
 
     assert saved_project is not None
     assert saved_story is not None
 
-    assert saved_project.story_id == 20
+    assert saved_project.story_id == test_story_id
+
+    assert saved_story.id == test_story_id
     assert saved_story.title == blueprint.title.value
+
+    assert saved_story.world.id == test_world_id
 
     assert saved_story.chapters
     assert saved_story.characters
+    assert saved_story.locations
+    assert saved_story.artifacts
     assert saved_story.illustrations
 
     print("Completed project persistence verified.")
@@ -706,22 +1085,27 @@ if __name__ == "__main__":
     scenes = []
 
     for chapter in story.chapters:
+
         for scene in chapter.scenes:
             scenes.append(scene)
 
-    # Verify the number of illustrations.
+    # VERIFY NUMBER OF ILLUSTRATIONS
+
     assert len(story.illustrations) == len(scenes)
 
-    # Collect illustration IDs.
+    # COLLECT ILLUSTRATION IDS
+
     illustration_ids = []
 
     for illustration in story.illustrations:
         illustration_ids.append(illustration.id)
 
-    # Verify that all illustration IDs are unique.
+    # VERIFY UNIQUE IDS
+
     assert len(illustration_ids) == len(set(illustration_ids))
 
-    # Verify scene references.
+    # VERIFY SCENE REFERENCES
+
     for scene in scenes:
 
         assert scene.illustration_id is not None
@@ -763,9 +1147,11 @@ if __name__ == "__main__":
 
     print("All illustrations are saved in DigitalOcean Spaces.")
 
+    # DISPLAY RESULTS
 
     print("Project ID:", project.id)
     print("Story ID:", story.id)
+    print("World ID:", story.world.id)
     print("Story title:", story.title)
     print("Genre:", story.settings.genre)
     print("World:", story.world.name)

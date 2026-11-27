@@ -5,6 +5,8 @@
 
 from ..ai.initial_story_schema import InitialStorySchema
 
+from uuid import uuid4
+
 from ..domain.character import Character
 from ..domain.location import Location
 from ..domain.artifact import Artifact
@@ -48,26 +50,25 @@ class StoryInitializationService:
         artifact_ids = {}
         relationship_ids = {}
 
-        for index, character in enumerate(initial_story.characters, start=1):
+        for character in initial_story.characters:
             if character.name in character_ids:
                 raise ValueError(f"Duplicate character name: {character.name}")
 
-            character_ids[character.name] = index
+            character_ids[character.name] = str(uuid4())
 
-        for index, location in enumerate(initial_story.locations, start=1):
+        for location in initial_story.locations:
             if location.name in location_ids:
                 raise ValueError(f"Duplicate location name: {location.name}")
 
-            location_ids[location.name] = index
+            location_ids[location.name] = str(uuid4())
 
-        for index, artifact in enumerate(initial_story.artifacts, start=1):
+        for artifact in initial_story.artifacts:
             if artifact.name in artifact_ids:
                 raise ValueError(f"Duplicate artifact name: {artifact.name}")
 
-            artifact_ids[artifact.name] = index
+            artifact_ids[artifact.name] = str(uuid4())
 
-        for index, relationship in enumerate(initial_story.relationships, start=1):
-
+        for relationship in initial_story.relationships:
             relationship_key = (
                 relationship.character_name,
                 relationship.related_character_name,
@@ -77,7 +78,7 @@ class StoryInitializationService:
             if relationship_key in relationship_ids:
                 raise ValueError("Duplicate relationship definition.")
 
-            relationship_ids[relationship_key] = index
+            relationship_ids[relationship_key] = str(uuid4())
 
         # ----------------------------------------------------
         # VALIDATE REFERENCES
@@ -189,10 +190,16 @@ class StoryInitializationService:
         # CREATE RELATIONSHIPS
         # ----------------------------------------------------
 
-        for index, relationship_data in enumerate(initial_story.relationships, start=1):
+        for relationship_data in initial_story.relationships:
+
+            relationship_key = (
+                relationship_data.character_name,
+                relationship_data.related_character_name,
+                relationship_data.relationship_type,
+            )
 
             relationship = Relationship(
-                id=index,
+                id=relationship_ids[relationship_key],
                 character_id=character_ids[relationship_data.character_name],
                 related_character_id=character_ids[relationship_data.related_character_name],
                 relationship_type=relationship_data.relationship_type,
@@ -206,13 +213,10 @@ class StoryInitializationService:
         # CREATE CHAPTERS AND SCENES
         # ----------------------------------------------------
 
-        scene_id = 1
-        dialogue_line_id = 1
-
         for chapter_data in initial_story.chapters:
 
             chapter = Chapter(
-                id=chapter_data.number,
+                id=str(uuid4()),
                 number=chapter_data.number,
                 title=chapter_data.title,
             )
@@ -224,13 +228,12 @@ class StoryInitializationService:
                 for dialogue_data in scene_data.dialogue:
 
                     dialogue_line = DialogueLine(
-                        id=dialogue_line_id,
+                        id=str(uuid4()),
                         speaker_character_id=character_ids[dialogue_data.speaker],
                         text=dialogue_data.text,
                     )
 
                     dialogue.append(dialogue_line)
-                    dialogue_line_id += 1
 
                 scene_character_ids = []
 
@@ -257,7 +260,7 @@ class StoryInitializationService:
                     )
 
                 scene = Scene(
-                    id=scene_id,
+                    id=str(uuid4()),
                     title=scene_data.title,
                     content=scene_data.narrative,
                     dialogue=dialogue,
@@ -269,8 +272,6 @@ class StoryInitializationService:
 
                 if not chapter.add_scene(scene):
                     raise ValueError("Could not add scene to chapter.")
-
-                scene_id += 1
 
             if not story.add_chapter(chapter):
                 raise ValueError("Could not add chapter to story.")
@@ -410,10 +411,11 @@ if __name__ == "__main__":
 
     print("\n--- CHARACTERS ---")
 
-    assert len(initialized_story.characters) == 2
+    character_1, character_2 = initialized_story.characters
 
-    assert initialized_story.get_character(1).name == "Elias"
-    assert initialized_story.get_character(2).name == "Marcus"
+    assert len(initialized_story.characters) == 2
+    assert character_1.name == "Elias"
+    assert character_2.name == "Marcus"
 
     print(initialized_story.characters[0].name)
     print(initialized_story.characters[1].name)
@@ -426,9 +428,8 @@ if __name__ == "__main__":
 
     assert len(initialized_story.locations) == 1
     assert len(initialized_story.artifacts) == 1
-
-    assert initialized_story.get_location(1).name == "Mars Research Station"
-    assert initialized_story.get_artifact(1).name == "Ancient Device"
+    assert initialized_story.locations[0].name == "Mars Research Station"
+    assert initialized_story.artifacts[0].name == "Ancient Device"
 
     print(initialized_story.locations[0].name)
     print(initialized_story.artifacts[0].name)
@@ -441,10 +442,10 @@ if __name__ == "__main__":
 
     assert len(initialized_story.relationships) == 1
 
-    relationship = initialized_story.get_relationship(1)
+    relationship = initialized_story.relationships[0]
 
-    assert relationship.character_id == 1
-    assert relationship.related_character_id == 2
+    assert relationship.character_id == character_1.id
+    assert relationship.related_character_id == character_2.id
 
     print(relationship.relationship_type)
     print(relationship.character_id)
@@ -458,12 +459,12 @@ if __name__ == "__main__":
 
     assert len(initialized_story.chapters) == 1
 
-    chapter = initialized_story.get_chapter(1)
+    chapter = initialized_story.chapters[0]
 
     assert chapter.title == "The Signal"
     assert len(chapter.scenes) == 1
 
-    scene = chapter.get_scene(1)
+    scene = chapter.scenes[0]
 
     assert scene.title == "The Arrival"
     assert scene.content == "The spacecraft landed on Mars."
@@ -478,10 +479,10 @@ if __name__ == "__main__":
 
     print("\n--- SCENE REFERENCES ---")
 
-    assert scene.character_ids == [1, 2]
-    assert scene.location_id == 1
-    assert scene.artifact_ids == [1]
-    assert scene.relationship_ids == [1]
+    assert scene.character_ids == [character_1.id, character_2.id]
+    assert scene.location_id == initialized_story.locations[0].id
+    assert scene.artifact_ids == [initialized_story.artifacts[0].id]
+    assert scene.relationship_ids == [relationship.id]
 
     print(scene.character_ids)
     print(scene.location_id)
@@ -495,10 +496,10 @@ if __name__ == "__main__":
 
     assert len(scene.dialogue) == 2
 
-    assert scene.dialogue[0].speaker_character_id == 1
+    assert scene.dialogue[0].speaker_character_id == character_1.id
     assert scene.dialogue[0].text == "We finally made it."
 
-    assert scene.dialogue[1].speaker_character_id == 2
+    assert scene.dialogue[1].speaker_character_id == character_2.id
 
     print(scene.dialogue[0].speaker_character_id)
     print(scene.dialogue[0].text)
