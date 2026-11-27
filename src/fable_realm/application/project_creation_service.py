@@ -242,12 +242,28 @@ class ProjectCreationService:
 
         try:
             with connection:
-                self.story_repository.save(story, connection)
+
+                self.story_repository.save(
+                    story,
+                    connection,
+                )
+
                 self.story_project_repository.save(
                     project,
                     user_id,
                     connection,
                 )
+
+                blueprint_deleted = self.blueprint_repository.delete(
+                    project_id=project.id,
+                    user_id=user_id,
+                    connection=connection,
+                )
+
+                if not blueprint_deleted:
+                    raise ValueError(
+                        "Blueprint could not be deleted."
+                    )
 
         finally:
             connection.close()
@@ -559,7 +575,6 @@ if __name__ == "__main__":
 
     story_repository = StoryRepository()
     story_project_repository = StoryProjectRepository()
-    blueprint_repository = BlueprintRepository()
     blueprint_repository = BlueprintRepository()
 
     user_id = "manual_test_user"
@@ -1064,6 +1079,18 @@ if __name__ == "__main__":
     assert saved_project.story_id == test_story_id
 
     assert saved_story.id == test_story_id
+
+    # VERIFY BLUEPRINT WAS DELETED
+
+    deleted_blueprint = blueprint_repository.get_by_project_id(
+        project_id=project.id,
+        user_id=user_id,
+    )
+
+    assert deleted_blueprint is None
+
+    print("Blueprint successfully deleted after Story initialization.")
+
     assert saved_story.title == blueprint.title.value
 
     assert saved_story.world.id == test_world_id
