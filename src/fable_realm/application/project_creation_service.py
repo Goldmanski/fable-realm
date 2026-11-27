@@ -103,7 +103,7 @@ class ProjectCreationService:
         self,
         project_id,
         project_title,
-        user_idea,
+        concept,
         model,
         user_id,
     ):
@@ -115,7 +115,7 @@ class ProjectCreationService:
 
         blueprint_response = self.story_ai_service.generate_story_blueprint(
             project=project,
-            user_idea=user_idea,
+            concept=concept,
             model=model
         )
 
@@ -154,13 +154,13 @@ class ProjectCreationService:
         story = self.story_service.create_story(
             id=story_id,
             world_id=world_id,
-            title=blueprint.title,
-            genre=blueprint.genre,
+            title=blueprint.title.value,
+            genre=blueprint.genre.value,
             tone=self.DEFAULT_TONE,
             length=self.DEFAULT_LENGTH,
             creativity=self.DEFAULT_CREATIVITY,
             world_name=self.DEFAULT_WORLD_NAME,
-            world_description=blueprint.world
+            world_description=blueprint.world.value
         )
 
         initial_story_response = self.story_ai_service.generate_initial_story(
@@ -211,10 +211,10 @@ class ProjectCreationService:
             "Create illustrations using one consistent visual style "
             "throughout the entire story. "
             "The visual style should reflect the following elements:\n"
-            f"Genre: {blueprint.genre}\n"
-            f"World: {blueprint.world}\n"
-            f"Atmosphere: {blueprint.atmosphere}\n"
-            f"Story direction: {blueprint.story_direction}\n"
+            f"Genre: {blueprint.genre.value}\n"
+            f"World: {blueprint.world.value}\n"
+            f"Atmosphere: {blueprint.atmosphere.value}\n"
+            f"Story direction: {blueprint.story_direction.value}\n"
             "Maintain consistent artistic direction, color palette, "
             "lighting, and visual atmosphere across all illustrations."
         )
@@ -445,6 +445,7 @@ if __name__ == "__main__":
     from ..infrastructure.story_repository import StoryRepository
     from ..infrastructure.story_project_repository import StoryProjectRepository
     from ..domain.story_project import StoryProject
+    from ..domain.concept import Concept
     import streamlit as st
 
     # --------------------------------------------------------
@@ -566,13 +567,35 @@ if __name__ == "__main__":
 
     print("\n--- TEST 2: GENERATE PROJECT BLUEPRINT ---")
 
+    from ..domain.concept import Concept
+
+    concept = Concept(
+        id=2,
+        project_id=2,
+    )
+
+    concept.story_idea.value = "An exiled prince discovers an ancient prophecy."
+    concept.genre.value = "Fantasy"
+    concept.world.value = "A medieval kingdom threatened by an ancient force."
+    concept.main_characters.value = "An exiled prince."
+    concept.atmosphere.value = "Dark and mysterious."
+    concept.main_conflict.value = "The prince must reclaim his kingdom."
+    concept.story_direction.value = "A journey of redemption."
+
+    concept.story_idea.accepted = True
+    concept.genre.accepted = True
+    concept.world.accepted = True
+    concept.main_characters.accepted = True
+    concept.atmosphere.accepted = True
+    concept.main_conflict.accepted = True
+    concept.story_direction.accepted = True
+
+    concept.update_status()
+
     project, blueprint = service.generate_project_blueprint(
         project_id=2,
         project_title="The Forgotten Kingdom",
-        user_idea=(
-            "An exiled prince discovers an ancient prophecy "
-            "that could help him reclaim his kingdom."
-        ),
+        concept=concept,
         model="gpt-4o",
         user_id=user_id,
     )
@@ -585,15 +608,15 @@ if __name__ == "__main__":
     assert project.story_id is None
 
     # Verify generated blueprint.
-    assert blueprint.title
-    assert blueprint.synopsis
-    assert blueprint.genre
-    assert blueprint.world
-    assert blueprint.main_characters
-    assert blueprint.atmosphere
-    assert blueprint.main_conflict
-    assert blueprint.plot_outline
-    assert blueprint.story_direction
+    assert blueprint.title.value
+    assert blueprint.synopsis.value
+    assert blueprint.genre.value
+    assert blueprint.world.value
+    assert blueprint.main_characters.value
+    assert blueprint.atmosphere.value
+    assert blueprint.main_conflict.value
+    assert blueprint.plot_outline.value
+    assert blueprint.story_direction.value
 
     saved_project = story_project_repository.get_by_id(2)
 
@@ -606,16 +629,15 @@ if __name__ == "__main__":
     print("Project ID:", project.id)
     print("Project title:", project.title)
 
-    print("\nGenerated Blueprint:")
-    print("Title:", blueprint.title)
-    print("Synopsis:", blueprint.synopsis)
-    print("Genre:", blueprint.genre)
-    print("World:", blueprint.world)
-    print("Main characters:", blueprint.main_characters)
-    print("Atmosphere:", blueprint.atmosphere)
-    print("Main conflict:", blueprint.main_conflict)
-    print("Plot outline:", blueprint.plot_outline)
-    print("Story direction:", blueprint.story_direction)
+    print("Title:", blueprint.title.value)
+    print("Synopsis:", blueprint.synopsis.value)
+    print("Genre:", blueprint.genre.value)
+    print("World:", blueprint.world.value)
+    print("Main characters:", blueprint.main_characters.value)
+    print("Atmosphere:", blueprint.atmosphere.value)
+    print("Main conflict:", blueprint.main_conflict.value)
+    print("Plot outline:", blueprint.plot_outline.value)
+    print("Story direction:", blueprint.story_direction.value)
 
     print("TEST 2 PASSED")
 
@@ -641,11 +663,11 @@ if __name__ == "__main__":
 
     # Verify story.
     assert story.id == 20
-    assert story.title == blueprint.title
+    assert story.title == blueprint.title.value
 
     # Verify blueprint data.
-    assert story.settings.genre == blueprint.genre
-    assert story.world.description == blueprint.world
+    assert story.settings.genre == blueprint.genre.value
+    assert story.world.description == blueprint.world.value
 
     # Verify default settings.
     assert story.settings.tone == "Balanced"
@@ -667,7 +689,7 @@ if __name__ == "__main__":
     assert saved_story is not None
 
     assert saved_project.story_id == 20
-    assert saved_story.title == blueprint.title
+    assert saved_story.title == blueprint.title.value
 
     assert saved_story.chapters
     assert saved_story.characters

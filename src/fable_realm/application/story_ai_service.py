@@ -3,6 +3,8 @@ from ..ai.provider import AIResponse
 from ..ai.story_blueprint_schema import StoryBlueprintSchema
 from ..domain.story_blueprint import StoryBlueprint
 from ..ai.initial_story_schema import InitialStorySchema
+from uuid import uuid4
+from ..domain.blueprint_section import BlueprintSection
 
 # ============================================================
 # STORY AI SERVICE
@@ -141,7 +143,7 @@ class StoryAIService:
     def generate_story_blueprint(
         self,
         project,
-        user_idea,
+        concept,
         model,
     ):
 
@@ -151,24 +153,57 @@ class StoryAIService:
         if not project.title or not project.title.strip():
             raise ValueError("Project title cannot be empty.")
 
-        if not user_idea or not user_idea.strip():
-            raise ValueError("User idea cannot be empty.")
+        if concept is None:
+            raise ValueError("Concept cannot be None.")
+
+        if concept.project_id != project.id:
+            raise ValueError("Concept does not belong to this project.")
+
+        if concept.status != "Ready":
+            raise ValueError("Concept must be Ready.")
 
         if not model or not model.strip():
             raise ValueError("Model cannot be empty.")
 
+        concept_sections = [
+            concept.story_idea,
+            concept.genre,
+            concept.world,
+            concept.main_characters,
+            concept.atmosphere,
+            concept.main_conflict,
+            concept.story_direction,
+        ]
+
+        for section in concept_sections:
+
+            if not section.value or not section.accepted:
+                raise ValueError(
+                    "All Concept sections must be completed and accepted."
+                )
+
         system_message = (
             "You are a creative writing assistant. "
-            "Develop the user's story idea into a detailed story blueprint. "
-            "Preserve the user's creative intent. "
-            "Do not introduce unrelated ideas. "
-            "Make every field meaningful and consistent with the other fields."
+            "Your task is to transform an approved Story Concept "
+            "into a detailed Story Blueprint. "
+            "Preserve all decisions accepted by the user. "
+            "Do not reinterpret or contradict the approved Concept. "
+            "You may expand and organize the information and fill "
+            "missing details consistently with the established concept. "
+            "Make every Blueprint field meaningful and consistent."
         )
 
         user_message = (
             f"Project title: {project.title}\n\n"
-            f"User's idea: {user_idea}\n\n"
-            "Create a complete story blueprint containing:\n"
+            "APPROVED STORY CONCEPT:\n\n"
+            f"Story Idea: {concept.story_idea.value}\n"
+            f"Genre: {concept.genre.value}\n"
+            f"World: {concept.world.value}\n"
+            f"Main Characters: {concept.main_characters.value}\n"
+            f"Atmosphere: {concept.atmosphere.value}\n"
+            f"Main Conflict: {concept.main_conflict.value}\n"
+            f"Story Direction: {concept.story_direction.value}\n\n"
+            "Create a complete Story Blueprint containing:\n"
             "- Title\n"
             "- Synopsis\n"
             "- Genre\n"
@@ -192,15 +227,46 @@ class StoryAIService:
         )
 
         blueprint = StoryBlueprint(
-            title=response.content.title,
-            synopsis=response.content.synopsis,
-            genre=response.content.genre,
-            world=response.content.world,
-            main_characters=response.content.main_characters,
-            atmosphere=response.content.atmosphere,
-            main_conflict=response.content.main_conflict,
-            plot_outline=response.content.plot_outline,
-            story_direction=response.content.story_direction,
+            id=str(uuid4()),
+            project_id=project.id,
+            title=BlueprintSection(
+                value=response.content.title,
+            ),
+            synopsis=BlueprintSection(
+                source_value=concept.story_idea.value,
+                value=response.content.synopsis,
+            ),
+            genre=BlueprintSection(
+                source_value=concept.genre.value,
+                value=response.content.genre,
+            ),
+            world=BlueprintSection(
+                source_value=concept.world.value,
+                value=response.content.world,
+            ),
+            main_characters=BlueprintSection(
+                source_value=concept.main_characters.value,
+                value=response.content.main_characters,
+            ),
+            atmosphere=BlueprintSection(
+                source_value=concept.atmosphere.value,
+                value=response.content.atmosphere,
+            ),
+            main_conflict=BlueprintSection(
+                source_value=concept.main_conflict.value,
+                value=response.content.main_conflict,
+            ),
+            plot_outline=BlueprintSection(
+                source_value=(
+                    f"Main Conflict: {concept.main_conflict.value}\n"
+                    f"Story Direction: {concept.story_direction.value}"
+                ),
+                value=response.content.plot_outline,
+            ),
+            story_direction=BlueprintSection(
+                source_value=concept.story_direction.value,
+                value=response.content.story_direction,
+            ),
         )
 
         return AIResponse(
@@ -239,11 +305,24 @@ class StoryAIService:
         9. Every dialogue speaker must be an exact name from the generated characters list.
         Never use generic speaker names such as "Villager", "Guard" or "Stranger"
         unless that character is explicitly defined in the characters list.
-        10. Scene references must correspond to defined characters, locations and artifacts.
-        11. Scene relationships must refer to relationships defined in the global relationships list.
-        12. Include only relationships that are relevant to the events or interactions in a particular scene.
-        13. Do not automatically include a relationship just because both characters are present in the scene.
-        14. If no relationship is relevant to a scene, return an empty relationships list.
+        10. Every relationship must connect exactly two characters
+        defined in the generated characters list.
+        11. Both character_name and related_character_name in every relationship
+        must exactly match the name of an existing character.
+        Never use the project title, story title, location names,
+        organization names or descriptions as character names.
+        12. Never create a relationship involving a character
+        that is not included in the generated characters list.
+        13. Scene references must correspond to defined characters,
+        locations and artifacts.
+        14. Scene relationships must refer to relationships
+        defined in the global relationships list.
+        15. Include only relationships relevant to the events
+        or interactions in a particular scene.
+        16. Do not automatically include a relationship
+        just because both characters are present in the scene.
+        17. If no relationship is relevant to a scene,
+        return an empty relationships list.
         15. Avoid unnecessary characters, locations and artifacts.
         16. Generate content suitable for further development by the user.
 
@@ -253,32 +332,32 @@ class StoryAIService:
         user_message = f"""
         Generate the initial story content using the following Blueprint.
 
-        TITLE:
-        {blueprint.title}
+                TITLE:
+        {blueprint.title.value}
 
         SYNOPSIS:
-        {blueprint.synopsis}
+        {blueprint.synopsis.value}
 
         GENRE:
-        {blueprint.genre}
+        {blueprint.genre.value}
 
         WORLD:
-        {blueprint.world}
+        {blueprint.world.value}
 
         MAIN CHARACTERS:
-        {blueprint.main_characters}
+        {blueprint.main_characters.value}
 
         ATMOSPHERE:
-        {blueprint.atmosphere}
+        {blueprint.atmosphere.value}
 
         MAIN CONFLICT:
-        {blueprint.main_conflict}
+        {blueprint.main_conflict.value}
 
         PLOT OUTLINE:
-        {blueprint.plot_outline}
+        {blueprint.plot_outline.value}
 
         STORY DIRECTION:
-        {blueprint.story_direction}
+        {blueprint.story_direction.value}
         """
 
         return self.generate_text(
@@ -303,6 +382,7 @@ if __name__ == "__main__":
     from ..ai.provider_factory import AIProviderFactory
     from ..infrastructure.ai_usage_repository import AIUsageRepository
     from .ai_usage_service import AIUsageService
+    from ..domain.concept import Concept
     import streamlit as st
 
     # --------------------------------------------------------
@@ -483,28 +563,90 @@ if __name__ == "__main__":
     # TEST GENERATE STORY BLUEPRINT
     # --------------------------------------------------------
 
+    concept = Concept(
+        id=1,
+        project_id=project.id,
+    )
+
+    # FILL CONCEPT SECTIONS
+
+    concept.story_idea.value = (
+        "A mysterious signal is received from an abandoned Mars colony."
+    )
+    concept.genre.value = "Science Fiction"
+    concept.world.value = "A remote human settlement on Mars."
+    concept.main_characters.value = "Elias, a young engineer."
+    concept.atmosphere.value = "Dark and mysterious."
+    concept.main_conflict.value = "The signal threatens the colony."
+    concept.story_direction.value = "A psychological science fiction thriller."
+
+    # ACCEPT ALL CONCEPT SECTIONS
+
+    concept.story_idea.accepted = True
+    concept.genre.accepted = True
+    concept.world.accepted = True
+    concept.main_characters.accepted = True
+    concept.atmosphere.accepted = True
+    concept.main_conflict.accepted = True
+    concept.story_direction.accepted = True
+
+    concept.update_status()
+
+    assert concept.status == "Ready"
+
     blueprint_response = service.generate_story_blueprint(
         project=project,
-        user_idea=(
-            "An exiled prince discovers an ancient prophecy "
-            "that could help him reclaim his kingdom."
-        ),
+        concept=concept,
         model="gpt-4o",
     )
 
     blueprint = blueprint_response.content
 
+    # VERIFY GENERATED BLUEPRINT
+
+    assert isinstance(blueprint, StoryBlueprint)
+    assert blueprint.project_id == project.id
+    assert blueprint.id is not None
+
+    assert blueprint.title.value
+    assert blueprint.synopsis.value
+    assert blueprint.genre.value
+    assert blueprint.world.value
+    assert blueprint.main_characters.value
+    assert blueprint.atmosphere.value
+    assert blueprint.main_conflict.value
+    assert blueprint.plot_outline.value
+    assert blueprint.story_direction.value
+
+    # VERIFY SOURCE VALUES
+
+    assert blueprint.title.source_value is None
+    assert blueprint.synopsis.source_value == concept.story_idea.value
+    assert blueprint.genre.source_value == concept.genre.value
+    assert blueprint.world.source_value == concept.world.value
+    assert blueprint.main_characters.source_value == concept.main_characters.value
+    assert blueprint.atmosphere.source_value == concept.atmosphere.value
+    assert blueprint.main_conflict.source_value == concept.main_conflict.value
+    assert blueprint.story_direction.source_value == concept.story_direction.value
+
+    # VERIFY ACCEPTANCE
+
+    assert blueprint.title.accepted is False
+    assert blueprint.genre.accepted is False
+    assert blueprint.world.accepted is False
+
     print("\n--- GENERATED STORY BLUEPRINT ---")
-    print(type(blueprint))
-    print(blueprint.title)
-    print(blueprint.synopsis)
-    print(blueprint.genre)
-    print(blueprint.world)
-    print(blueprint.main_characters)
-    print(blueprint.atmosphere)
-    print(blueprint.main_conflict)
-    print(blueprint.plot_outline)
-    print(blueprint.story_direction)
+    print("Title:", blueprint.title.value)
+    print("Synopsis:", blueprint.synopsis.value)
+    print("Genre:", blueprint.genre.value)
+    print("World:", blueprint.world.value)
+    print("Main characters:", blueprint.main_characters.value)
+    print("Atmosphere:", blueprint.atmosphere.value)
+    print("Main conflict:", blueprint.main_conflict.value)
+    print("Plot outline:", blueprint.plot_outline.value)
+    print("Story direction:", blueprint.story_direction.value)
+
+    print("TEST GENERATE STORY BLUEPRINT PASSED")
 
     # ============================================================
     # TEST: GENERATE INITIAL STORY

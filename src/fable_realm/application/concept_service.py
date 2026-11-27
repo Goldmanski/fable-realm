@@ -213,9 +213,10 @@ if __name__ == "__main__":
     from ..ai.provider_factory import AIProviderFactory
     from ..infrastructure.ai_usage_repository import AIUsageRepository
     from ..ai.concept_response_schema import (
-    ConceptResponseSchema,
-    ConceptSectionUpdateSchema,
-)
+        ConceptResponseSchema, 
+        ConceptSectionUpdateSchema
+    )
+        
     import streamlit as st
 
     # --------------------------------------------------------

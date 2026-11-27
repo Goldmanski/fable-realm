@@ -19,8 +19,13 @@ class ArtifactSchema(BaseModel):
 
 
 class RelationshipSchema(BaseModel):
-    character_name: str = Field(description="Name of the first character.")
-    related_character_name: str = Field(description="Name of the second character.")
+    character_name: str = Field(
+        description="Exact name of the first character from the characters list."
+    )
+    related_character_name: str = Field(
+        description="Exact name of the second character from the characters list. "
+        "Must not be a story title, project title or location."
+    )
     relationship_type: str
     description: str
 
